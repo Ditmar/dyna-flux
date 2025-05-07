@@ -65,11 +65,11 @@ const renderInitPlotyData = (html: string) => {
     const hashMap = new Map<string, boolean>();
     const code = ['', '', ''];
     if (plotlyObjects) {
+        console.log('plotlyObjects', plotlyObjects);
         plotlyObjects.forEach((plotlyObject: any) => {
             const { id, dataPlotly } = plotlyObject;
             const plotData = getVarsGraph(dataPlotly);
-            console.log(plotData);
-            code[2] = `const dataPlotly_${id} = []; \n`;
+            code[2] += `const dataPlotly_${id} = []; \n`;
             for (let i = 0; i < plotData.length; i++) {
                 const [x, y, z] = plotData[i];
                 if (x === undefined || y === undefined) {
@@ -119,14 +119,16 @@ const renderInitPlotyData = (html: string) => {
                         code[1] += `${y}_${id}PlotData.push(this.${y}); \n`;
                         hashMap.set(`${y}_${id}PlotData.push(this.${y}); \n`, true);
                     }
+
                     code[2] += `dataPlotly_${id}.push({x: ${x}_${id}PlotData, y: ${y}_${id}PlotData, mode: 'lines', type: 'scatter'}); \n`;
-
                 }
-            }
 
+            }
+            console.log('----------------->', id);
             code[2] += `Plotly.react('${id}', dataPlotly_${id}, {}); \n`;
         });
     }
+    console.log('code', code);
     return code;
 }
 

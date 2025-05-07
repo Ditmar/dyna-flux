@@ -6,17 +6,30 @@ const doublePendulumModel = {
     this.l1 = 1.0;
     this.l2 = 1.0;
 
-    this.theta1 = Math.PI / 2;
-    this.theta2 = Math.PI / 2;
-    this.omega1 = 0;
-    this.omega2 = 0;
+    this.theta1Init = Math.PI / 2;
+    this.theta2Init = Math.PI / 2;
+    this.omega1init = 0;
+    this.omega2init = 0;
 
     this.dt = 0.01;
     this.initTime = 0;
     this.finalTime = 20;
+    this.x1Init = 0;
+    this.y1Init = 0;
+    this.x2Init = 0;
+    this.y2Init = 0;
+
   },
 
   update: function () {
+    this.theta1 = this.theta1Init;
+    this.theta2 = this.theta2Init;
+    this.omega1 = this.omega1init;
+    this.omega2 = this.omega2init;
+    this.x1 = this.x1Init;
+    this.y1 = this.y2Init;
+    this.x2 = this.x2Init;
+    this.y2 = this.y2Init;
     for (this.time = this.initTime; this.time < this.finalTime; this.time += this.dt) {
       const delta = this.theta2 - this.theta1;
 
@@ -51,3 +64,12 @@ const doublePendulumModel = {
     }
   }
 };
+
+
+<p id="example">
+  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="0" data-max="300" data-step="0.5"></span>
+  k1 <span data-var="k1" class="TKAdjustableNumber" data-min="0" data-max="1" data-step="0.001"></span>
+  k2 <span data-var="k2" class="TKAdjustableNumber" data-min="0" data-max="1" data-step="0.001"></span>
+  
+</p>
+<div id='sigmoidal' class='plotly'  data-plotly='[time, x2, y2]'></div>
