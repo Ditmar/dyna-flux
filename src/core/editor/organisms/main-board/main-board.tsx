@@ -6,7 +6,7 @@ import WrapperFlow from '../../molecules/wrapper-flow/wrapper-flow';
 import Header from '../../atoms/top-bar/top-bar';
 import IframeViewer from '../../molecules/iframe-loader/iframeLoader';
 const mockedCode = `
-const mnodel = {
+const model = {
   initialize: function () {
     this.x0 = 0;    
     this.a = 0.1;     
@@ -20,7 +20,7 @@ const mnodel = {
   update: function () {
     this.x = this.x0;
     for (this.time = this.initTime; this.time < this.finalTime; this.time += this.dt[this.step]) {
-      
+      // Ecuacion diferencial
     }
   }
 };
