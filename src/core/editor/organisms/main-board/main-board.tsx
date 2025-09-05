@@ -11,21 +11,18 @@ const model = {
     this.x0 = 0;    
     this.a = 0.1;     
     this.xd = 500;     
-    this.b = 0.05;
+    this.b = 0.05;     
     this.step = 0; 
     this.dt = [1, 0.5, 0.25, 0.125, 0.0625];
     this.initTime = 0;
     this.finalTime = 100;
   },
   update: function () {
-    this.x = this.x0;
     for (this.time = this.initTime; this.time < this.finalTime; this.time += this.dt[this.step]) {
       // Ecuacion diferencial
     }
   }
 };
-
-
 `;
 const mockedHtml = `
 
