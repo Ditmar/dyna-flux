@@ -1,7 +1,7 @@
 import React from 'react';
 import type { HeaderProps } from './top-bar.types';
 import styles from './top-bar.module.scss';
-
+;;;
 const Header = (props: HeaderProps) => {
   const { user, play, visibleForrester } = props;
   const [playText, setPlayText] = React.useState(false);
