@@ -7,6 +7,7 @@ const Header = (props: HeaderProps) => {
   const [playText, setPlayText] = React.useState(false);
   const [isVisible, setVisible] = React.useState(false);
   const handlerPlay = () => {
+    console.log('test play');
     setPlayText(!playText);
     play(!playText);
   };
@@ -17,7 +18,7 @@ const Header = (props: HeaderProps) => {
   return (
     <div className={styles.header}>
       <button onClick={handlerPlay}>Play</button>
-      <button onClick={showForrester}>Show Forrester</button>
+      <button onClick={showForrester}>Show Diagram of Forrester</button>
       <h1>{user?.name}</h1>
     </div>
   );
