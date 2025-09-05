@@ -3,7 +3,7 @@ export interface HeaderProps {
   onLogout?: () => void;
   onCreateAccount?: () => void;
   play: (isPlay: boolean) => void;
-  visibleForre: (isVisible: boolean) => void;
+  visibleForrester: (isVisible: boolean) => void;
   user?: {
     name: string;
   };
