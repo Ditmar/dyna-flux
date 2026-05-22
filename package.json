@@ -21,6 +21,7 @@
     "escodegen": "^2.1.0",
     "esprima": "^4.0.1",
     "express": "^5.1.0",
+    "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

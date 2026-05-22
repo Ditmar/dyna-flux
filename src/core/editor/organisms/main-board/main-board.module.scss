@@ -19,3 +19,33 @@
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 999;
 }
+.panelWrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.fullscreenBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: rgba(30, 30, 30, 0.75);
+    color: #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+        background: rgba(60, 60, 60, 0.95);
+        color: #fff;
+    }
+}

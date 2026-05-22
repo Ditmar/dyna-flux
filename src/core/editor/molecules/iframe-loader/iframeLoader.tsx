@@ -10,13 +10,13 @@ const IframeViewer: React.FC<IframeViewerProps> = ({ src, title = 'Contenido ext
   if (!src) return <p>No se proporcionó una URL</p>;
 
   return (
-    <div style={{ width: '100%', height: '100%', border: '1px solid #ccc',  display: isVisibleForrester? 'block' : 'none'}}>
+    <div style={{ width: '100%', height: 'calc(100vh - 50px)', border: '1px solid #ccc', display: isVisibleForrester ? 'block' : 'none' }}>
       <iframe
         src={src}
         title={title}
         style={{
           width: '100%',
-          height: '500px',
+          height: '100%',
           border: 'none',
         }}
         allowFullScreen

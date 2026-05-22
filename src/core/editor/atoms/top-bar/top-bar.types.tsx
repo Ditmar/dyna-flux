@@ -4,6 +4,7 @@ export interface HeaderProps {
   onCreateAccount?: () => void;
   play: (isPlay: boolean) => void;
   visibleForrester: (isVisible: boolean) => void;
+  baseModel: () => void;
   user?: {
     name: string;
   };

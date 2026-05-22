@@ -4,54 +4,84 @@
     <link rel='stylesheet' href='/assets/css/style.css' />
     <!-- Copyright 1998-2025 by Northwoods Software Corporation. -->
     <style>
-      .menu-container {
-        color: white;
-        text-align: center;
-      }
-
-      .menu-title {
-        font-size: 1.5rem;
-      }
-
-      .menu-section {
-        display: flex;
-        justify-content: center;
-        gap: 0.5rem;
-        align-items: flex-start;
-      }
-
-      .menu-group {
-        background: #f4f4f4;
-        border-radius: 6px;
-        min-width: 160px;
-      }
-
-      .menu-group h4 {
+      /* ── Layout reset so the diagram fills the iframe ── */
+      html, body {
         margin: 0;
-        font-size: 0.95rem;
-        color: #333;
-        margin-bottom: 0.3rem;
+        padding: 0;
+        overflow: hidden;
       }
+      /* Remove Tailwind prose / container constraints */
+      .prose { max-width: 100% !important; }
+      .max-w-screen-xl { max-width: 100% !important; }
+      #allSampleContent { padding: 6px 8px !important; }
 
-      .menu-group button {
-        padding: 0.4rem 0.7rem;
-        border: none;
-        border-radius: 4px;
-        background-color: #007bff;
-        color: white;
-        font-size: 0.85rem;
+      /* ── Toolbar ── */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: #1e293b;
+        padding: 6px 10px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        flex-wrap: wrap;
+      }
+      .toolbar-sep {
+        width: 1px;
+        height: 32px;
+        background: #334155;
+        margin: 0 6px;
+        flex-shrink: 0;
+      }
+      .tool-btn {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 7px 12px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: #94a3b8;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        font-size: 0.62rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        min-width: 54px;
       }
-
-      .menu-group button:hover {
-        background-color: #0056b3;
+      .tool-btn svg {
+        display: block;
       }
-
-      .menu-group button.selected {
-        background-color: #00d9ff;
-        color: black;
-        font-weight: bold;
+      .tool-btn:hover {
+        background: #334155;
+        color: #f1f5f9;
+        border-color: #475569;
+      }
+      .tool-btn.active {
+        background: #1d4ed8;
+        color: #fff;
+        border-color: #3b82f6;
+      }
+      .tool-btn.btn-success {
+        color: #4ade80;
+      }
+      .tool-btn.btn-success:hover {
+        background: #14532d;
+        color: #86efac;
+        border-color: #166534;
+      }
+      .tool-btn.btn-danger {
+        color: #f87171;
+      }
+      .tool-btn.btn-danger:hover {
+        background: #450a0a;
+        color: #fca5a5;
+        border-color: #7f1d1d;
       }
 
       /* ── Formula popup ── */
@@ -417,7 +447,7 @@
                 new NodeLabelDraggingTool()
               );
 
-              // when the document is modified, add a "*" to the title and enable the "Save" button
+              // update title/button when modified state changes
               myDiagram.addDiagramListener('Modified', (e) => {
                 var button = document.getElementById('SaveButton');
                 if (button) button.disabled = !myDiagram.isModified;
@@ -427,7 +457,12 @@
                 } else {
                   if (idx >= 0) document.title = document.title.slice(0, idx);
                 }
-                // Debounced autosave to localStorage
+              });
+
+              // Debounced autosave — fires after every committed transaction,
+              // not just when isModified changes (which only triggers once per session)
+              myDiagram.addModelChangedListener(function(e) {
+                if (!e.isTransactionFinished) return;
                 if (saveTimer) clearTimeout(saveTimer);
                 saveTimer = setTimeout(function() {
                   try { localStorage.setItem(STORAGE_KEY, myDiagram.model.toJson()); } catch(e) {}
@@ -668,8 +703,11 @@
                   curve: go.Curve.Bezier,
                   toShortLength: 10,
                   curviness: 50,
+                  reshapable: true,     // drag the midpoint handle to reposition the arc
+                  resegmentable: true,  // double-click the link to add extra bend points
+                  selectionObjectName: 'SHAPE',
                 }).add(
-                  new go.Shape({ stroke: 'green', strokeWidth: 1.5 }),
+                  new go.Shape({ name: 'SHAPE', stroke: 'green', strokeWidth: 1.5 }),
                   new go.Shape({
                     fill: 'green',
                     stroke: null,
@@ -680,12 +718,19 @@
               );
             }
 
+            function clearDiagram() {
+              if (!confirm('Clear the diagram? This cannot be undone.')) return;
+              myDiagram.model = go.Model.fromJson('{ "class": "go.GraphLinksModel", "linkLabelKeysProperty": "labelKeys", "nodeDataArray": [], "linkDataArray": [] }');
+              SD.nodeCounter = { stock: 0, cloud: 0, variable: 0, valve: 0 };
+              try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+            }
+
             function setMode(mode, itemType) {
               myDiagram.startTransaction();
-              document.getElementById(SD.itemType + '_button').style.filter =
-                'brightness(100%)';
-              document.getElementById(itemType + '_button').style.filter =
-                'brightness(180%)';
+              var prevBtn = document.getElementById(SD.itemType + '_button');
+              if (prevBtn) prevBtn.classList.remove('active');
+              var nextBtn = document.getElementById(itemType + '_button');
+              if (nextBtn) nextBtn.classList.add('active');
               SD.mode = mode;
               SD.itemType = itemType;
               if (mode === 'pointer') {
@@ -936,52 +981,59 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
 
           <div id='sample'>
             <div class='flex flex-row flex-wrap'>
-              <div class='menu-container'>
-                <div class='menu-section'>
-                  <div class='menu-group'>
-                    <button
-                      id='pointer_button'
-                      onclick="setMode('pointer','pointer');">Pointer</button
-                    >
-                  </div>
+              <!-- Icon toolbar -->
+              <nav class='toolbar' style='width:100%'>
 
-                  <div class='menu-group'>
-                    <button id='stock_button' onclick="setMode('node','stock');"
-                      >Stock</button
-                    >
-                    <button id='cloud_button' onclick="setMode('node','cloud');"
-                      >Cloud</button
-                    >
-                    <button
-                      id='variable_button'
-                      onclick="setMode('node','variable');">Variable</button
-                    >
-                  </div>
+                <!-- Select -->
+                <button id='pointer_button' class='tool-btn active' onclick="setMode('pointer','pointer');" title='Select / Move'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='currentColor'><path d='M5 3l14 9-7 1.5-2.5 7z'/></svg>
+                  Pointer
+                </button>
 
-                  <div class='menu-group'>
-                    <button id='flow_button' onclick="setMode('link','flow');"
-                      >Flow</button
-                    >
-                    <button
-                      id='influence_button'
-                      onclick="setMode('link','influence');">Influence</button
-                    >
-                  </div>
+                <div class='toolbar-sep'></div>
 
-                  <div class='menu-group'>
-                    <button
-                      id='generate_button'
-                      onclick='generateModel();'
-                      style='background-color: #28a745;'
-                      >Generate Model</button
-                    >
-                  </div>
-                </div>
-              </div>
+                <!-- Nodes -->
+                <button id='stock_button' class='tool-btn' onclick="setMode('node','stock');" title='Add Stock (state variable)'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='7' width='20' height='10' rx='2'/></svg>
+                  Stock
+                </button>
+                <button id='cloud_button' class='tool-btn' onclick="setMode('node','cloud');" title='Add Cloud (source / sink)'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><path d='M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 0 1 0 9z'/></svg>
+                  Cloud
+                </button>
+                <button id='variable_button' class='tool-btn' onclick="setMode('node','variable');" title='Add Auxiliary Variable'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='2.5' fill='currentColor' stroke='none'/></svg>
+                  Variable
+                </button>
+
+                <div class='toolbar-sep'></div>
+
+                <!-- Links -->
+                <button id='flow_button' class='tool-btn' onclick="setMode('link','flow');" title='Draw Flow (rate)'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='2' y1='12' x2='20' y2='12'/><polyline points='14 6 20 12 14 18'/></svg>
+                  Flow
+                </button>
+                <button id='influence_button' class='tool-btn' onclick="setMode('link','influence');" title='Draw Influence arrow'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19C4 10 14 6 18 10'/><polyline points='14 7 18 10 15 14'/></svg>
+                  Influence
+                </button>
+
+                <div class='toolbar-sep'></div>
+
+                <!-- Actions -->
+                <button id='generate_button' class='tool-btn btn-success' onclick='generateModel();' title='Generate model code from diagram'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='currentColor'/></svg>
+                  Generate
+                </button>
+                <button id='clear_button' class='tool-btn btn-danger' onclick='clearDiagram();' title='Clear diagram'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14H6L5 6'/><path d='M10 11v6M14 11v6'/><path d='M9 6V4h6v2'/></svg>
+                  Clear
+                </button>
+              </nav>
               <div
                 id='myDiagramDiv'
-                class='mb-2 mr-2 min-w-[400px]'
-                style='width: 100%; height: 400px; border: solid 1px black'
+                class='mb-2 mr-2'
+                style='width: 100%; height: calc(100vh - 90px); border: solid 1px black'
               >
               </div>
               <div
