@@ -26,7 +26,7 @@ function injectAfterLoop(code: string, afterLoopCode: string) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (!inFor && line.includes('for')) {
+    if (!inFor && /^\s*for\s*\(/.test(line)) {
       inFor = true;
     }
 

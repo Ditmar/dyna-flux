@@ -36,9 +36,8 @@ const getWrapperTangle = (model: string, options: string = '') => {
     	<script type="text/javascript">
         ${options}
 		function setUpTangle () {
-
 			var element = document.getElementById("example");
-
+			if (!element) return;
 			var tangle = new Tangle(element, ${model});
 		}
 

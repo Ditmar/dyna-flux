@@ -29,7 +29,7 @@ const WrapperFlow: React.FC<WrapperFlowProps> = (props) => {
       if (iframeDocument) {
         iframeDocument.open();
         iframeDocument.write(`
-          ${getWrapperHead('Dinamica de Sistemas', baseCode, 'options')}
+          ${getWrapperHead('Dinamica de Sistemas', baseCode, '')}
           ${getWrapperBody(html)}
           `);
         const iframeBody = iframeDocument.body;

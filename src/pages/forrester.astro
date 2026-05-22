@@ -53,6 +53,123 @@
         color: black;
         font-weight: bold;
       }
+
+      /* ── Formula popup ── */
+      #formula-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      }
+      #formula-modal-box {
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 20px 24px;
+        width: 540px;
+        max-width: 92vw;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+        border: 1px solid #3c3c3c;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      #formula-modal-box h3 {
+        margin: 0 0 4px 0;
+        font-size: 1rem;
+        color: #cccccc;
+        font-weight: 500;
+      }
+      #formula-modal-box h3 span {
+        color: #4ec9b0;
+        font-family: 'Consolas', 'Courier New', monospace;
+      }
+      .formula-hint {
+        font-size: 0.75rem;
+        color: #858585;
+        margin: 0 0 6px 0;
+      }
+      #formula-vars-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 10px;
+        min-height: 26px;
+        align-items: center;
+      }
+      .formula-var-badge {
+        padding: 2px 9px;
+        background: #1e3a5f;
+        color: #9cdcfe;
+        border: 1px solid #2d5a8e;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.75rem;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.12s, border-color 0.12s;
+        line-height: 1.6;
+      }
+      .formula-var-badge:hover {
+        background: #2d5a8e;
+        border-color: #4a88c8;
+        color: #fff;
+      }
+      .formula-var-badge--shadow {
+        background: #1a2d1a;
+        color: #6a9955;
+        border-color: #2d4d2d;
+      }
+      .formula-var-badge--shadow:hover {
+        background: #2d4d2d;
+        border-color: #4a7a4a;
+        color: #9fca80;
+      }
+      .formula-var-sep {
+        color: #444;
+        font-size: 0.85rem;
+        padding: 0 2px;
+        user-select: none;
+      }
+      #formula-input {
+        width: 100%;
+        height: 72px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9rem;
+        background: #0d0d0d;
+        color: #d4d4d4;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        resize: vertical;
+        outline: none;
+        caret-color: #fff;
+      }
+      #formula-input:focus {
+        border-color: #007acc;
+        box-shadow: 0 0 0 1px #007acc;
+      }
+      .formula-modal-hint {
+        font-size: 0.7rem;
+        color: #555;
+        margin: 4px 0 10px 0;
+      }
+      .formula-modal-footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .formula-modal-footer button {
+        padding: 5px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 500;
+        transition: opacity 0.15s;
+      }
+      .formula-modal-footer button:hover { opacity: 0.82; }
     </style>
     <title>
       System Dynamics Diagram Editor: Storage, Flows, Control Factors | GoJS
@@ -80,6 +197,145 @@
               nodeCounter: { stock: 0, cloud: 0, variable: 0, valve: 0 },
             };
             var myDiagram; // Declared as global
+            var currentFormulaNodeKey = null;
+            var currentFormulaProp = 'formula'; // 'formula' | 'initialValue'
+            var saveTimer = null;
+            var STORAGE_KEY = 'dyna-flux:diagram';
+
+            // Returns true if the formula references model variables (this.xxx)
+            function isDynamic(formula) {
+              return Boolean(formula && /\bthis\./.test(formula));
+            }
+
+            function insertAtCursor(text) {
+              var ta    = document.getElementById('formula-input');
+              var start = ta.selectionStart;
+              var end   = ta.selectionEnd;
+              ta.value  = ta.value.substring(0, start) + text + ta.value.substring(end);
+              ta.selectionStart = ta.selectionEnd = start + text.length;
+              ta.focus();
+            }
+
+            // propName: 'formula' (valve/variable) | 'initialValue' (stock)
+            // category: 'stock' | 'valve' | 'variable'
+            function openFormulaModal(nodeKey, nodeLabel, currentValue, propName, category) {
+              currentFormulaNodeKey = nodeKey;
+              currentFormulaProp    = propName || 'formula';
+
+              var isInitVal = currentFormulaProp === 'initialValue';
+              document.getElementById('formula-modal-prefix').textContent =
+                isInitVal ? 'Initial value' : 'Formula';
+              document.getElementById('formula-node-label').textContent = nodeLabel;
+
+              var modelJson = JSON.parse(myDiagram.model.toJson());
+              var allNodes  = modelJson.nodeDataArray || [];
+              var allLinks  = modelJson.linkDataArray || [];
+              var nodeMap   = {};
+              allNodes.forEach(function(n) { nodeMap[n.key] = n; });
+
+              var relatedVars = [];
+
+              if (category === 'stock') {
+                // For stocks: show all other stocks and variables as possible initial value refs
+                allNodes.forEach(function(n) {
+                  if ((n.category === 'stock' || n.category === 'variable') && n.key !== nodeKey) {
+                    relatedVars.push({ varName: 'this.' + toVarName(n.label || n.key), display: n.label || n.key });
+                  }
+                });
+              } else {
+                // For valve/variable: filter by incoming influence arrows
+                var influencerKeys = {};
+                allLinks.forEach(function(l) {
+                  if (l.category === 'influence' && l.to === nodeKey) influencerKeys[l.from] = true;
+                });
+                var hasInfluences = Object.keys(influencerKeys).length > 0;
+                if (hasInfluences) {
+                  Object.keys(influencerKeys).forEach(function(key) {
+                    var n = nodeMap[key];
+                    if (n && (n.category === 'stock' || n.category === 'variable')) {
+                      relatedVars.push({ varName: 'this.' + toVarName(n.label || n.key), display: n.label || n.key });
+                    }
+                  });
+                } else {
+                  allNodes.forEach(function(n) {
+                    if (n.category === 'stock' || n.category === 'variable') {
+                      relatedVars.push({ varName: 'this.' + toVarName(n.label || n.key), display: n.label || n.key });
+                    }
+                  });
+                }
+              }
+
+              var shadows = [
+                { varName: 'this.time',      display: 'time' },
+                { varName: 'this.dt',        display: 'dt' },
+                { varName: 'this.finalTime', display: 'finalTime' },
+              ];
+
+              var container = document.getElementById('formula-vars-container');
+              container.innerHTML = '';
+              relatedVars.forEach(function(v) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'formula-var-badge';
+                b.textContent = v.display; b.title = v.varName;
+                b.onclick = function() { insertAtCursor(v.varName); };
+                container.appendChild(b);
+              });
+              if (relatedVars.length > 0) {
+                var sep = document.createElement('span');
+                sep.className = 'formula-var-sep'; sep.textContent = '|';
+                container.appendChild(sep);
+              }
+              shadows.forEach(function(v) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'formula-var-badge formula-var-badge--shadow';
+                b.textContent = v.display; b.title = v.varName;
+                b.onclick = function() { insertAtCursor(v.varName); };
+                container.appendChild(b);
+              });
+
+              var input = document.getElementById('formula-input');
+              input.value = currentValue || '';
+              input.placeholder = isInitVal
+                ? 'e.g. 100  or  this.otherVar * 2'
+                : 'e.g. this.alpha * this.prey';
+              document.getElementById('formula-modal').style.display = 'flex';
+              setTimeout(function() {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+              }, 30);
+            }
+
+            function saveFormula() {
+              if (currentFormulaNodeKey === null) return;
+              var value = document.getElementById('formula-input').value;
+              var node = myDiagram.findNodeForKey(currentFormulaNodeKey);
+              if (node) {
+                myDiagram.startTransaction('set ' + currentFormulaProp);
+                myDiagram.model.setDataProperty(node.data, currentFormulaProp, value.trim());
+                myDiagram.commitTransaction('set ' + currentFormulaProp);
+              }
+              closeFormulaModal();
+            }
+
+            function closeFormulaModal() {
+              document.getElementById('formula-modal').style.display = 'none';
+              currentFormulaNodeKey = null;
+            }
+
+            // Convert any user-facing label into a valid JS identifier.
+            // "tasa de nacimientos" → "tasa_de_nacimientos"
+            // "población (t)"       → "poblacion_t"
+            // "2ndStock"            → "_2ndStock"
+            function toVarName(label) {
+              var s = (label || '')
+                .trim()
+                .normalize('NFD')
+                .replace(/[̀-ͯ]/g, '')    // strip accent marks: á→a, ñ→n, ü→u
+                .replace(/[^a-zA-Z0-9_$]+/g, '_')  // any run of invalid chars → single _
+                .replace(/^_+|_+$/g, '')            // trim outer underscores
+                .replace(/^(\d)/, '_$1');           // can't start with digit
+              return s || 'unnamed';
+            }
 
             function init() {
               myDiagram = new go.Diagram('myDiagramDiv', {
@@ -171,6 +427,11 @@
                 } else {
                   if (idx >= 0) document.title = document.title.slice(0, idx);
                 }
+                // Debounced autosave to localStorage
+                if (saveTimer) clearTimeout(saveTimer);
+                saveTimer = setTimeout(function() {
+                  try { localStorage.setItem(STORAGE_KEY, myDiagram.model.toJson()); } catch(e) {}
+                }, 400);
               });
 
               // generate unique label for valve on newly-created flow link
@@ -194,6 +455,11 @@
 
               load();
               setMode('pointer', 'pointer');
+
+              document.getElementById('formula-input').addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeFormulaModal();
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveFormula();
+              });
             }
 
             function buildTemplates() {
@@ -249,13 +515,27 @@
                 'stock',
                 new go.Node(nodeStyle())
                   .add(
-                    new go.Shape({ desiredSize: new go.Size(50, 30) }).set(
-                      shapeStyle()
-                    ),
+                    new go.Shape({
+                      desiredSize: new go.Size(50, 30),
+                      doubleClick: function(e, shape) {
+                        var node = shape.part;
+                        openFormulaModal(
+                          node.data.key,
+                          node.data.label || node.data.key,
+                          node.data.initialValue || '',
+                          'initialValue',
+                          'stock'
+                        );
+                      },
+                    })
+                    .set(shapeStyle())
+                    .bind('fill', 'initialValue', function(v) {
+                      return (v !== undefined && v !== null && String(v).trim()) ? '#fff9c4' : '#f0f0f0';
+                    }),
                     textStyle(
                       new go.TextBlock({
-                        _isNodeLabel: true, // declare draggable by NodeLabelDraggingTool
-                        alignment: new go.Spot(0.5, 0.5, 0, 30), // initial value
+                        _isNodeLabel: true,
+                        alignment: new go.Spot(0.5, 0.5, 0, 30),
                       }).bindTwoWay(
                         'alignment',
                         'label_offset',
@@ -308,11 +588,19 @@
                     new go.Shape({
                       figure: 'Ellipse',
                       desiredSize: new go.Size(20, 20),
-                    }).set(shapeStyle()),
+                      doubleClick: function(e, shape) {
+                        var node = shape.part;
+                        openFormulaModal(node.data.key, node.data.label || node.data.key, node.data.formula || '', 'formula', 'valve');
+                      },
+                    })
+                    .set(shapeStyle())
+                    .bind('fill', 'formula', function(f) {
+                      return (f && f.trim()) ? '#a5d6a7' : '#f0f0f0';
+                    }),
                     textStyle(
                       new go.TextBlock({
-                        _isNodeLabel: true, // declare draggable by NodeLabelDraggingTool
-                        alignment: new go.Spot(0.5, 0.5, 0, 20), // initial value
+                        _isNodeLabel: true,
+                        alignment: new go.Spot(0.5, 0.5, 0, 20),
                       }).bindTwoWay(
                         'alignment',
                         'label_offset',
@@ -325,7 +613,7 @@
 
               myDiagram.nodeTemplateMap.add(
                 'variable',
-                new go.Node(nodeStyle({ type: go.Panel.Spot })) // Spot para ubicar libremente
+                new go.Node(nodeStyle({ type: go.Panel.Spot }))
                   .bindTwoWay(
                     'location',
                     'loc',
@@ -336,12 +624,20 @@
                     new go.Shape({
                       figure: 'Ellipse',
                       desiredSize: new go.Size(20, 20),
-                    }).set(shapeStyle()),
+                      doubleClick: function(e, shape) {
+                        var node = shape.part;
+                        openFormulaModal(node.data.key, node.data.label || node.data.key, node.data.formula || '', 'formula', 'variable');
+                      },
+                    })
+                    .set(shapeStyle())
+                    .bind('fill', 'formula', function(f) {
+                      return (f && f.trim()) ? '#a5d6a7' : '#f0f0f0';
+                    }),
                     textStyle(
                       new go.TextBlock({
-                        _isNodeLabel: true, // necesario para que sea draggable
-                        editable: true, // por si querés editar también
-                        alignment: new go.Spot(0.5, 0.5, 0, 25), // desplazado hacia abajo
+                        _isNodeLabel: true,
+                        editable: true,
+                        alignment: new go.Spot(0.5, 0.5, 0, 25),
                       })
                     ).bindTwoWay(
                       'alignment',
@@ -407,16 +703,234 @@
 
             // Show the diagram's model in JSON format that the user may edit
             function load() {
-              myDiagram.model = go.Model.fromJson(
-                `{ "class": "go.GraphLinksModel",
-  "linkLabelKeysProperty": "labelKeys",
-  "nodeDataArray": [
-  ],
-  "linkDataArray": [
-  ]
-}`
-              );
+              var saved = null;
+              try { saved = localStorage.getItem(STORAGE_KEY); } catch(e) {}
+
+              var emptyModel = '{ "class": "go.GraphLinksModel", "linkLabelKeysProperty": "labelKeys", "nodeDataArray": [], "linkDataArray": [] }';
+              myDiagram.model = go.Model.fromJson(saved || emptyModel);
+
+              if (saved) {
+                // Restore node counters so new nodes get unique keys
+                var nodes = (JSON.parse(saved).nodeDataArray || []);
+                nodes.forEach(function(n) {
+                  var cat = n.category;
+                  if (cat && SD.nodeCounter[cat] !== undefined) {
+                    var num = parseInt((n.key || '').replace(/\D+/g, '')) || 0;
+                    if (num > SD.nodeCounter[cat]) SD.nodeCounter[cat] = num;
+                  }
+                });
+              }
             }
+
+            function generateModel() {
+              const modelJson = JSON.parse(myDiagram.model.toJson());
+              const nodes = modelJson.nodeDataArray || [];
+              const links = modelJson.linkDataArray || [];
+
+              const stocks    = nodes.filter(function(n) { return n.category === 'stock'; });
+              const variables = nodes.filter(function(n) { return n.category === 'variable'; });
+              const valves    = nodes.filter(function(n) { return n.category === 'valve'; });
+              const flows     = links.filter(function(l) { return l.category === 'flow'; });
+
+              // map valve key → sanitized JS identifier
+              var valveMap = {};
+              valves.forEach(function(v) { valveMap[v.key] = toVarName(v.label || v.key); });
+
+              // map sanitized valve name → formula
+              var valveFormulaMap = {};
+              valves.forEach(function(v) { valveFormulaMap[toVarName(v.label || v.key)] = v.formula || ''; });
+
+              // determine inflows / outflows per stock
+              var stockFlows = {};
+              stocks.forEach(function(s) {
+                stockFlows[s.key] = { label: toVarName(s.label || s.key), inflows: [], outflows: [] };
+              });
+
+              flows.forEach(function(flow) {
+                var valveKey  = flow.labelKeys && flow.labelKeys[0];
+                var flowName  = valveKey ? valveMap[valveKey] : toVarName(flow.text || 'flow');
+                if (stockFlows[flow.from]) stockFlows[flow.from].outflows.push(flowName);
+                if (stockFlows[flow.to])   stockFlows[flow.to].inflows.push(flowName);
+              });
+
+              // ---- build initialize() body with topological sort ----
+
+              // Extract all this.xxx references from an expression
+              function getInitDeps(expr) {
+                if (!expr) return [];
+                var deps = [];
+                var re = /this\.([A-Za-z_][A-Za-z0-9_]*)/g;
+                var m;
+                while ((m = re.exec(expr)) !== null) deps.push(m[1]);
+                return deps;
+              }
+
+              // Build a unified list of declarations: { key, line, deps[] }
+              var allDecls = [];
+
+              variables.forEach(function(v) {
+                var lbl     = toVarName(v.label || v.key);
+                var formula = v.formula;
+                var line, deps;
+                if (!formula || !formula.trim()) {
+                  line = '    this.' + lbl + ' = 1;  // TODO: set value';
+                  deps = [];
+                } else if (!isDynamic(formula)) {
+                  line = '    this.' + lbl + ' = ' + formula + ';';
+                  deps = getInitDeps(formula);
+                } else {
+                  line = '    this.' + lbl + ' = 0;  // computed in update()';
+                  deps = [];
+                }
+                allDecls.push({ key: lbl, line: line, deps: deps, kind: 'variable' });
+              });
+
+              stocks.forEach(function(s) {
+                var lbl     = toVarName(s.label || s.key);
+                var initVal = (s.initialValue !== undefined && String(s.initialValue).trim())
+                  ? s.initialValue : '100';
+                var comment = (s.initialValue !== undefined && String(s.initialValue).trim())
+                  ? '' : '  // TODO: set initial value';
+                var line = '    this.' + lbl + ' = ' + initVal + ';' + comment;
+                var deps = getInitDeps(String(initVal));
+                allDecls.push({ key: lbl, line: line, deps: deps, kind: 'stock' });
+              });
+
+              // DFS topological sort
+              var declMap = {};
+              allDecls.forEach(function(d) { declMap[d.key] = d; });
+
+              var visited = {};
+              var sorted  = [];
+
+              function visitDecl(key) {
+                if (visited[key]) return;
+                visited[key] = true;
+                var d = declMap[key];
+                if (d) {
+                  d.deps.forEach(function(dep) { visitDecl(dep); });
+                  sorted.push(d);
+                }
+              }
+
+              allDecls.forEach(function(d) { visitDecl(d.key); });
+
+              // Output in topological order, adding section headers on kind transitions
+              var initLines = [];
+              var lastKind = null;
+              sorted.forEach(function(d) {
+                if (d.kind !== lastKind) {
+                  if (lastKind !== null) initLines.push('');
+                  initLines.push(d.kind === 'stock'
+                    ? '    // Stocks (state variables)'
+                    : '    // Parameters / auxiliary variables');
+                  lastKind = d.kind;
+                }
+                initLines.push(d.line);
+              });
+
+              initLines.push('');
+              initLines.push('    // Simulation settings');
+              initLines.push('    this.dt = 0.1;');
+              initLines.push('    this.initTime = 0;');
+              initLines.push('    this.finalTime = 100;');
+
+              // ---- build update() body ----
+              var insideLoop = [];
+
+              // Only dynamic variables (formula references this.xxx) go inside the loop
+              var dynamicVars = variables.filter(function(v) {
+                return v.formula && isDynamic(v.formula);
+              });
+              if (dynamicVars.length > 0) {
+                insideLoop.push('      // Auxiliary variables (dynamic)');
+                dynamicVars.forEach(function(v) {
+                  insideLoop.push('      this.' + toVarName(v.label || v.key) + ' = ' + v.formula + ';');
+                });
+                insideLoop.push('');
+              }
+
+              var uniqueFlowNames = [];
+              flows.forEach(function(flow) {
+                var valveKey = flow.labelKeys && flow.labelKeys[0];
+                var name = valveKey ? valveMap[valveKey] : toVarName(flow.text || 'flow');
+                if (uniqueFlowNames.indexOf(name) === -1) uniqueFlowNames.push(name);
+              });
+
+              if (uniqueFlowNames.length > 0) {
+                insideLoop.push('      // Flow rates');
+                uniqueFlowNames.forEach(function(name) {
+                  var formula = valveFormulaMap[name];
+                  if (formula && formula.trim()) {
+                    insideLoop.push('      const ' + name + ' = ' + formula + ';');
+                  } else {
+                    insideLoop.push('      const ' + name + ' = 0;  // TODO: define formula for ' + name);
+                  }
+                });
+                insideLoop.push('');
+              }
+
+              insideLoop.push('      // Stock updates (Euler integration)');
+              stocks.forEach(function(s) {
+                var sf = stockFlows[s.key];
+                var label = sf.label;
+                var inStr  = sf.inflows.length  ? sf.inflows.join(' + ')  : null;
+                var outStr = sf.outflows.length ? sf.outflows.join(' + ') : null;
+
+                var net;
+                if (inStr && outStr)  net = '(' + inStr + ') - (' + outStr + ')';
+                else if (inStr)       net = inStr;
+                else if (outStr)      net = '-(' + outStr + ')';
+                else                  net = '0  // no flows connected';
+
+                insideLoop.push('      this.' + label + ' += (' + net + ') * this.dt;');
+              });
+
+              // ---- reset stocks to initial values before each simulation run ----
+              var resetLines = [];
+              stocks.forEach(function(s) {
+                var lbl     = toVarName(s.label || s.key);
+                var initVal = (s.initialValue !== undefined && String(s.initialValue).trim())
+                  ? s.initialValue : '100';
+                resetLines.push('    this.' + lbl + ' = ' + initVal + ';');
+              });
+
+              var modelCode =
+'const model = {\n' +
+'  initialize: function () {\n' +
+initLines.join('\n') + '\n' +
+'  },\n' +
+'  update: function () {\n' +
+'    // Reset stocks to initial values before running simulation\n' +
+resetLines.join('\n') + '\n' +
+'\n' +
+'    for (this.time = this.initTime; this.time < this.finalTime; this.time += this.dt) {\n' +
+insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
+'    }\n' +
+'  }\n' +
+'};\n';
+
+              // ---- build HTML panel ----
+              var htmlLines = [];
+              htmlLines.push('<p id="example">');
+              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="1" data-max="500"></span>');
+              if (variables.length > 0) {
+                variables.forEach(function(v) {
+                  var lbl         = toVarName(v.label || v.key);
+                  var displayName = v.label || v.key;
+                  htmlLines.push('  ' + displayName + ' <span data-var="' + lbl + '" class="TKAdjustableNumber" data-min="0" data-max="10" data-step="0.01"></span>');
+                });
+              }
+              htmlLines.push('</p>');
+              stocks.forEach(function(s) {
+                var lbl = toVarName(s.label || s.key);
+                htmlLines.push("<div id='" + lbl + "_plot' class='plotly' data-plotly='[time, " + lbl + "]'></div>");
+              });
+              var htmlCode = htmlLines.join('\n');
+
+              window.parent.postMessage({ type: 'forresterModel', code: modelCode, html: htmlCode }, '*');
+            }
+
             window.addEventListener('DOMContentLoaded', init);
           </script>
 
@@ -453,6 +967,15 @@
                       onclick="setMode('link','influence');">Influence</button
                     >
                   </div>
+
+                  <div class='menu-group'>
+                    <button
+                      id='generate_button'
+                      onclick='generateModel();'
+                      style='background-color: #28a745;'
+                      >Generate Model</button
+                    >
+                  </div>
                 </div>
               </div>
               <div
@@ -473,6 +996,25 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <!-- Formula editor popup -->
+    <div id='formula-modal'>
+      <div id='formula-modal-box'>
+        <h3><span id='formula-modal-prefix'>Formula</span> for: <span id='formula-node-label'></span></h3>
+        <p class='formula-hint'>Click to insert:</p>
+        <div id='formula-vars-container'></div>
+        <textarea
+          id='formula-input'
+          spellcheck='false'
+          autocomplete='off'
+          placeholder='e.g. this.alpha * this.prey'
+        ></textarea>
+        <p class='formula-modal-hint'>Ctrl+Enter to save &nbsp;·&nbsp; Esc to cancel</p>
+        <div class='formula-modal-footer'>
+          <button onclick='closeFormulaModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
+          <button onclick='saveFormula()' style='background:#0e7a3c; color:#fff;'>Save</button>
         </div>
       </div>
     </div>

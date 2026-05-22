@@ -37,15 +37,29 @@ poblacion inicial <span data-var="x" class="TKAdjustableNumber" data-min="0" dat
 <div id='negative' class='plotly'  data-plotly='[time, x]'></div>
 
 `;
+const LS_CODE = 'dyna-flux:code';
+const LS_HTML = 'dyna-flux:html';
+
 const MainBoard = () => {
-  const [code, setCode] = useState(mockedCode);
+  const [code, setCode] = useState(() => localStorage.getItem(LS_CODE) ?? mockedCode);
   const [play, setPlay] = useState(false);
   const [isVisibleForrester, setVisibleForrester] = useState(false);
-  const [htmlCode, setHtmlCode] = useState(mockedHtml);
+  const [htmlCode, setHtmlCode] = useState(() => localStorage.getItem(LS_HTML) ?? mockedHtml);
   const draggableRef = useRef<HTMLHRElement>(null);
   const [leftPorcent, setPorcent] = useState(50);
   const mouseDown = useRef(false);
   const [isMouseMove, setMouseMove] = useState(false);
+  useEffect(() => {
+    const onForresterMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'forresterModel') {
+        setCode(event.data.code || '');
+        setHtmlCode(event.data.html || '');
+      }
+    };
+    window.addEventListener('message', onForresterMessage);
+    return () => window.removeEventListener('message', onForresterMessage);
+  }, []);
+
   useEffect(() => {
     draggableRef.current?.addEventListener('mousedown', (e) => {
       mouseDown.current = true;
@@ -93,14 +107,22 @@ const MainBoard = () => {
             defaultValue='const model = { }'
             theme='vs-dark'
             value={code}
-            onChange={(value) => setCode(value || '')}
+            onChange={(value) => {
+              const v = value || '';
+              setCode(v);
+              localStorage.setItem(LS_CODE, v);
+            }}
           />
           <Editor
             height='50vh'
             defaultLanguage='html'
             defaultValue='<div></div>'
             value={htmlCode}
-            onChange={(value) => setHtmlCode(value || '')}
+            onChange={(value) => {
+              const v = value || '';
+              setHtmlCode(v);
+              localStorage.setItem(LS_HTML, v);
+            }}
           />
         </Panel>
         <hr ref={draggableRef} className={styles.draggable} />
