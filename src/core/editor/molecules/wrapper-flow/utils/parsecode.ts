@@ -125,7 +125,11 @@ const renderInitPlotyData = (html: string) => {
 
             }
             console.log('----------------->', id);
-            code[2] += `Plotly.react('${id}', dataPlotly_${id}, {}); \n`;
+            // Preserve 3D camera: read back whatever scene/camera the user left the plot at.
+            // For 2D plots, el.layout has no .scene so _cam is undefined → layout stays {}.
+            const camVar = `_cam_${id.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            code[2] += `var ${camVar} = document.getElementById('${id}')?.layout?.scene?.camera; \n`;
+            code[2] += `Plotly.react('${id}', dataPlotly_${id}, ${camVar} ? { scene: { camera: ${camVar} } } : {}); \n`;
         });
     }
     console.log('code', code);
