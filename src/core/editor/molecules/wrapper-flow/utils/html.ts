@@ -24,6 +24,7 @@ const getWrapperHead = (title: string, model: string, options: string) => {
             <script type="text/javascript" src="./lib/TangleKit/sprintf.js"></script>
             <script type="text/javascript" src="./lib/TangleKit/BVTouchable.js"></script>
             <script type="text/javascript" src="./lib/TangleKit/TangleKit.js"></script>
+            <script type="text/javascript" src="./lib/dynaflux-stdlib.js"></script>
             ${getWrapperTangle(model, options)}
         </head>
     `;

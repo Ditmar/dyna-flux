@@ -117,15 +117,70 @@
       .formula-hint {
         font-size: 0.75rem;
         color: #858585;
-        margin: 0 0 6px 0;
+        margin: 0;
       }
+      .formula-vars-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+      }
+      .formula-vars-count {
+        font-size: 0.68rem;
+        color: #555;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+      }
+      .formula-search-wrap {
+        position: relative;
+        margin-bottom: 7px;
+      }
+      .formula-search-icon {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 12px;
+        color: #555;
+        pointer-events: none;
+      }
+      #formula-vars-search {
+        width: 100%;
+        box-sizing: border-box;
+        background: #111;
+        border: 1px solid #383838;
+        border-radius: 4px;
+        color: #ccc;
+        font-size: 0.78rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        padding: 5px 8px 5px 28px;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      #formula-vars-search:focus {
+        border-color: #007acc;
+        box-shadow: 0 0 0 1px #007acc;
+      }
+      #formula-vars-search::placeholder { color: #444; }
       #formula-vars-container {
         display: flex;
         flex-wrap: wrap;
         gap: 5px;
         margin-bottom: 10px;
-        min-height: 26px;
-        align-items: center;
+        max-height: 114px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #333 #111;
+        padding: 2px 1px;
+        align-items: flex-start;
+        align-content: flex-start;
+      }
+      .formula-vars-empty {
+        font-size: 0.75rem;
+        color: #555;
+        font-style: italic;
+        padding: 2px 4px;
       }
       .formula-var-badge {
         padding: 2px 9px;
@@ -200,6 +255,288 @@
         transition: opacity 0.15s;
       }
       .formula-modal-footer button:hover { opacity: 0.82; }
+
+      /* ── fx function picker button ── */
+      .formula-fx-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        background: #1a2d45;
+        border: 1px solid #2d5a8e;
+        border-radius: 4px;
+        color: #9cdcfe;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        font-family: 'Consolas', 'Courier New', monospace;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        margin-right: auto;
+      }
+      .formula-fx-btn:hover { background: #2d5a8e; border-color: #4a88c8; color: #fff; }
+
+      /* ── fx modal ── */
+      #fx-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      }
+      #fx-modal-box {
+        background: #1e1e1e;
+        color: #ffffff;
+        border-radius: 8px;
+        padding: 18px 22px 14px;
+        width: 640px;
+        max-width: 94vw;
+        max-height: 78vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.75);
+        border: 1px solid #3c3c3c;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      .fx-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        flex-shrink: 0;
+      }
+      .fx-modal-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #ccc;
+        font-weight: 500;
+      }
+      .fx-modal-close {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 1.3rem;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        line-height: 1;
+        transition: color 0.15s, background 0.15s;
+      }
+      .fx-modal-close:hover { color: #ccc; background: #333; }
+      .fx-search-wrap {
+        position: relative;
+        margin-bottom: 10px;
+        flex-shrink: 0;
+      }
+      .fx-search-icon {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 12px;
+        color: #555;
+        pointer-events: none;
+      }
+      #fx-search {
+        width: 100%;
+        box-sizing: border-box;
+        background: #111;
+        border: 1px solid #383838;
+        border-radius: 4px;
+        color: #ccc;
+        font-size: 0.78rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        padding: 5px 8px 5px 28px;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      #fx-search:focus { border-color: #007acc; box-shadow: 0 0 0 1px #007acc; }
+      #fx-search::placeholder { color: #444; }
+      #fx-list {
+        flex: 1;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #333 #111;
+      }
+      .fx-category-label {
+        font-size: 0.63rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #4a88c8;
+        padding: 10px 4px 4px;
+        font-weight: 700;
+        user-select: none;
+        border-bottom: 1px solid #252525;
+        margin-bottom: 2px;
+      }
+      .fx-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 7px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background 0.1s;
+        border: 1px solid transparent;
+        margin-bottom: 1px;
+      }
+      .fx-item:hover { background: #1a2a3e; border-color: #2d5a8e; }
+      .fx-item-info { flex: 1; min-width: 0; }
+      .fx-item-sig {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.76rem;
+        color: #9cdcfe;
+        margin-bottom: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .fx-item-desc {
+        font-size: 0.69rem;
+        color: #6a6a6a;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .fx-item-insert {
+        flex-shrink: 0;
+        padding: 3px 10px;
+        background: #152336;
+        border: 1px solid #2d5a8e;
+        border-radius: 3px;
+        color: #9cdcfe;
+        font-size: 0.7rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s;
+      }
+      .fx-item-insert:hover { background: #2d5a8e; color: #fff; }
+      .fx-modal-hint {
+        font-size: 0.67rem;
+        color: #3a3a3a;
+        margin: 8px 0 0;
+        flex-shrink: 0;
+        text-align: center;
+      }
+
+      /* ── Model Settings modal ── */
+      #settings-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      }
+      #settings-modal-box {
+        background: #1e1e1e;
+        border-radius: 10px;
+        padding: 22px 26px 18px;
+        width: 400px;
+        max-width: 92vw;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.75);
+        border: 1px solid #3c3c3c;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      .settings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .settings-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #ccc;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .settings-header h3 svg { color: #4a88c8; flex-shrink: 0; }
+      .settings-close {
+        background: none;
+        border: none;
+        color: #555;
+        font-size: 1.3rem;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        line-height: 1;
+        transition: color 0.15s, background 0.15s;
+      }
+      .settings-close:hover { color: #ccc; background: #333; }
+      .settings-body { display: flex; flex-direction: column; gap: 18px; }
+      .settings-field { display: flex; flex-direction: column; gap: 6px; }
+      .settings-label {
+        font-size: 0.72rem;
+        color: #858585;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .settings-input {
+        background: #111;
+        border: 1px solid #383838;
+        border-radius: 5px;
+        color: #d4d4d4;
+        font-size: 0.9rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        padding: 7px 10px;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        -moz-appearance: textfield;
+      }
+      .settings-input::-webkit-inner-spin-button,
+      .settings-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+      .settings-input:focus { border-color: #007acc; box-shadow: 0 0 0 1px #007acc; }
+      .settings-dt-group {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border: 1px solid #383838;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .settings-dt-btn {
+        padding: 9px 0;
+        background: #111;
+        border: none;
+        border-right: 1px solid #383838;
+        border-bottom: 1px solid #383838;
+        color: #666;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        line-height: 1;
+        text-align: center;
+      }
+      .settings-dt-btn:nth-child(4n)   { border-right: none; }
+      .settings-dt-btn:nth-child(n+5)  { border-bottom: none; }
+      .settings-dt-btn:hover:not(.active) { background: #1a2d45; color: #9cdcfe; }
+      .settings-dt-btn.active { background: #1d4ed8; color: #fff; font-weight: 600; }
+      .settings-footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 22px;
+      }
+      .settings-footer button {
+        padding: 6px 18px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 500;
+        transition: opacity 0.15s;
+      }
+      .settings-footer button:hover { opacity: 0.82; }
     </style>
     <title>
       System Dynamics Diagram Editor: Storage, Flows, Control Factors | GoJS
@@ -231,6 +568,10 @@
             var currentFormulaProp = 'formula'; // 'formula' | 'initialValue'
             var saveTimer = null;
             var STORAGE_KEY = 'dyna-flux:diagram';
+            var SETTINGS_KEY = 'dyna-flux:settings';
+            var _formulaAllVars = [];
+            var _pendingDt = 1;
+            var modelSettings = { initTime: 0, finalTime: 100, dt: 1 };
 
             // Returns true if the formula references model variables (this.xxx)
             function isDynamic(formula) {
@@ -301,27 +642,16 @@
                 { varName: 'this.finalTime', display: 'finalTime' },
               ];
 
-              var container = document.getElementById('formula-vars-container');
-              container.innerHTML = '';
-              relatedVars.forEach(function(v) {
-                var b = document.createElement('button');
-                b.type = 'button'; b.className = 'formula-var-badge';
-                b.textContent = v.display; b.title = v.varName;
-                b.onclick = function() { insertAtCursor(v.varName); };
-                container.appendChild(b);
-              });
-              if (relatedVars.length > 0) {
-                var sep = document.createElement('span');
-                sep.className = 'formula-var-sep'; sep.textContent = '|';
-                container.appendChild(sep);
-              }
-              shadows.forEach(function(v) {
-                var b = document.createElement('button');
-                b.type = 'button'; b.className = 'formula-var-badge formula-var-badge--shadow';
-                b.textContent = v.display; b.title = v.varName;
-                b.onclick = function() { insertAtCursor(v.varName); };
-                container.appendChild(b);
-              });
+              // Store all vars for live search filtering
+              _formulaAllVars = relatedVars.map(function(v) {
+                return { varName: v.varName, display: v.display, isShadow: false };
+              }).concat(shadows.map(function(v) {
+                return { varName: v.varName, display: v.display, isShadow: true };
+              }));
+
+              var searchEl = document.getElementById('formula-vars-search');
+              if (searchEl) searchEl.value = '';
+              renderFormulaBadges('');
 
               var input = document.getElementById('formula-input');
               input.value = currentValue || '';
@@ -330,8 +660,12 @@
                 : 'e.g. this.alpha * this.prey';
               document.getElementById('formula-modal').style.display = 'flex';
               setTimeout(function() {
-                input.focus();
-                input.setSelectionRange(input.value.length, input.value.length);
+                if (searchEl && _formulaAllVars.length > 0) {
+                  searchEl.focus();
+                } else {
+                  input.focus();
+                  input.setSelectionRange(input.value.length, input.value.length);
+                }
               }, 30);
             }
 
@@ -350,6 +684,218 @@
             function closeFormulaModal() {
               document.getElementById('formula-modal').style.display = 'none';
               currentFormulaNodeKey = null;
+            }
+
+            function renderFormulaBadges(query) {
+              var container = document.getElementById('formula-vars-container');
+              var countEl   = document.getElementById('formula-vars-count');
+              container.innerHTML = '';
+
+              var q            = (query || '').toLowerCase().trim();
+              var relFiltered  = _formulaAllVars.filter(function(v) { return !v.isShadow  && (!q || v.display.toLowerCase().indexOf(q) !== -1); });
+              var shadFiltered = _formulaAllVars.filter(function(v) { return  v.isShadow  && (!q || v.display.toLowerCase().indexOf(q) !== -1); });
+              var total        = _formulaAllVars.filter(function(v) { return !v.isShadow; }).length;
+              var visible      = relFiltered.length + shadFiltered.length;
+
+              if (countEl) {
+                countEl.textContent = q
+                  ? visible + ' / ' + _formulaAllVars.length
+                  : total + (total === 1 ? ' var' : ' vars');
+              }
+
+              if (visible === 0) {
+                var empty = document.createElement('span');
+                empty.className = 'formula-vars-empty';
+                empty.textContent = 'No matches';
+                container.appendChild(empty);
+                return;
+              }
+
+              relFiltered.forEach(function(v) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'formula-var-badge'; b.tabIndex = -1;
+                b.textContent = v.display; b.title = v.varName;
+                b.onclick = function() { insertAtCursor(v.varName); };
+                container.appendChild(b);
+              });
+
+              if (relFiltered.length > 0 && shadFiltered.length > 0) {
+                var sep = document.createElement('span');
+                sep.className = 'formula-var-sep'; sep.textContent = '|';
+                container.appendChild(sep);
+              }
+
+              shadFiltered.forEach(function(v) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'formula-var-badge formula-var-badge--shadow'; b.tabIndex = -1;
+                b.textContent = v.display; b.title = v.varName;
+                b.onclick = function() { insertAtCursor(v.varName); };
+                container.appendChild(b);
+              });
+            }
+
+            /* ── fx function catalog ── */
+            var FX_FUNCTIONS = [
+              // Time
+              { cat: 'Time', name: 'PULSE',       sig: 'PULSE(start, width, this.time)',                          desc: 'Returns 1 during [start, start+width), 0 otherwise',                      snippet: 'PULSE(10, 1, this.time)' },
+              { cat: 'Time', name: 'PULSE_TRAIN',  sig: 'PULSE_TRAIN(start, width, interval, end, this.time)',     desc: 'Repeating pulses of given width at regular intervals',                     snippet: 'PULSE_TRAIN(0, 1, 5, 100, this.time)' },
+              { cat: 'Time', name: 'RAMP',         sig: 'RAMP(slope, start_time, this.time)',                     desc: 'Linear ramp starting at start_time, rate = slope/time unit',              snippet: 'RAMP(1, 10, this.time)' },
+              { cat: 'Time', name: 'STEP',         sig: 'STEP(height, step_time, this.time)',                     desc: 'Jumps from 0 to height at step_time',                                     snippet: 'STEP(1, 10, this.time)' },
+              // Logic
+              { cat: 'Logic', name: 'IF_THEN_ELSE', sig: 'IF_THEN_ELSE(condition, a, b)',                         desc: 'Returns a when condition is true, b otherwise',                           snippet: 'IF_THEN_ELSE(this.x > 0, this.x, 0)' },
+              { cat: 'Logic', name: 'CLIP',         sig: 'CLIP(x, lo, hi)',                                       desc: 'Clamps x to the range [lo, hi]',                                          snippet: 'CLIP(this.x, 0, 100)' },
+              { cat: 'Logic', name: 'XIDZ',         sig: 'XIDZ(x, y, z)',                                        desc: 'x / y; returns z if y is zero',                                           snippet: 'XIDZ(this.a, this.b, 0)' },
+              { cat: 'Logic', name: 'ZIDZ',         sig: 'ZIDZ(x, y)',                                           desc: 'x / y; returns 0 if y is zero',                                           snippet: 'ZIDZ(this.a, this.b)' },
+              // Math
+              { cat: 'Math', name: 'ABS',           sig: 'ABS(x)',                                               desc: 'Absolute value',                                                          snippet: 'ABS(this.x)' },
+              { cat: 'Math', name: 'LN',            sig: 'LN(x)',                                                 desc: 'Natural logarithm (base e)',                                               snippet: 'LN(this.x)' },
+              { cat: 'Math', name: 'EXP',           sig: 'EXP(x)',                                               desc: 'Exponential — e raised to x',                                             snippet: 'EXP(this.x)' },
+              { cat: 'Math', name: 'SQRT',          sig: 'SQRT(x)',                                               desc: 'Square root',                                                             snippet: 'SQRT(this.x)' },
+              { cat: 'Math', name: 'SIN',           sig: 'SIN(x)',                                               desc: 'Sine of x (radians)',                                                      snippet: 'SIN(this.x)' },
+              { cat: 'Math', name: 'COS',           sig: 'COS(x)',                                               desc: 'Cosine of x (radians)',                                                    snippet: 'COS(this.x)' },
+              { cat: 'Math', name: 'INTEGER',       sig: 'INTEGER(x)',                                           desc: 'Floor of x to nearest integer',                                           snippet: 'INTEGER(this.x)' },
+              { cat: 'Math', name: 'MODULO',        sig: 'MODULO(x, m)',                                         desc: 'x modulo m — always non-negative',                                        snippet: 'MODULO(this.x, 10)' },
+              { cat: 'Math', name: 'RANDOM_UNIFORM',sig: 'RANDOM_UNIFORM(min, max)',                              desc: 'Uniform random number in [min, max)',                                      snippet: 'RANDOM_UNIFORM(0, 1)' },
+              // Delay / Smooth
+              { cat: 'Delay / Smooth', name: 'SMOOTH',  sig: "SMOOTH('id', input, avgTime, this.time, this.dt, init)",  desc: 'First-order exponential smoothing — low-pass filter',            snippet: "SMOOTH('s1', this.x, 5, this.time, this.dt, 0)" },
+              { cat: 'Delay / Smooth', name: 'DELAY1',  sig: "DELAY1('id', input, delayTime, this.time, this.dt, init)", desc: 'First-order exponential delay',                                  snippet: "DELAY1('d1', this.x, 5, this.time, this.dt, 0)" },
+              { cat: 'Delay / Smooth', name: 'DELAY3',  sig: "DELAY3('id', input, delayTime, this.time, this.dt, init)", desc: 'Third-order pipeline delay — sharper, less distorted response', snippet: "DELAY3('d3', this.x, 5, this.time, this.dt, 0)" },
+              { cat: 'Delay / Smooth', name: 'TREND',   sig: "TREND('id', input, avgTime, this.time, this.dt)",         desc: 'Relative rate of change: (input − smooth) / (smooth × avgTime)', snippet: "TREND('t1', this.x, 5, this.time, this.dt)" },
+            ];
+
+            function openFxModal() {
+              var searchEl = document.getElementById('fx-search');
+              if (searchEl) searchEl.value = '';
+              renderFxList('');
+              document.getElementById('fx-modal').style.display = 'flex';
+              setTimeout(function() { if (searchEl) searchEl.focus(); }, 30);
+            }
+
+            function closeFxModal() {
+              document.getElementById('fx-modal').style.display = 'none';
+            }
+
+            function renderFxList(query) {
+              var list = document.getElementById('fx-list');
+              list.innerHTML = '';
+              var q = (query || '').toLowerCase().trim();
+
+              var cats = [];
+              var catMap = {};
+              FX_FUNCTIONS.forEach(function(fn) {
+                if (q && fn.name.toLowerCase().indexOf(q) === -1 && fn.desc.toLowerCase().indexOf(q) === -1 && fn.sig.toLowerCase().indexOf(q) === -1) return;
+                if (!catMap[fn.cat]) { catMap[fn.cat] = []; cats.push(fn.cat); }
+                catMap[fn.cat].push(fn);
+              });
+
+              if (cats.length === 0) {
+                var empty = document.createElement('div');
+                empty.style.cssText = 'color:#555; font-size:0.75rem; padding:14px 4px; font-style:italic;';
+                empty.textContent = 'No functions match "' + query + '"';
+                list.appendChild(empty);
+                return;
+              }
+
+              cats.forEach(function(cat) {
+                var label = document.createElement('div');
+                label.className = 'fx-category-label';
+                label.textContent = cat;
+                list.appendChild(label);
+
+                catMap[cat].forEach(function(fn) {
+                  var item = document.createElement('div');
+                  item.className = 'fx-item';
+
+                  var info = document.createElement('div');
+                  info.className = 'fx-item-info';
+
+                  var sig = document.createElement('div');
+                  sig.className = 'fx-item-sig';
+                  sig.textContent = fn.sig;
+                  sig.title = fn.snippet;
+
+                  var desc = document.createElement('div');
+                  desc.className = 'fx-item-desc';
+                  desc.textContent = fn.desc;
+
+                  info.appendChild(sig);
+                  info.appendChild(desc);
+
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'fx-item-insert';
+                  btn.textContent = 'Insert';
+                  btn.onclick = function(e) { e.stopPropagation(); insertFxSnippet(fn.snippet); };
+
+                  item.onclick = function() { insertFxSnippet(fn.snippet); };
+                  item.appendChild(info);
+                  item.appendChild(btn);
+                  list.appendChild(item);
+                });
+              });
+            }
+
+            function insertFxSnippet(snippet) {
+              insertAtCursor(snippet);
+              closeFxModal();
+              setTimeout(function() { document.getElementById('formula-input').focus(); }, 30);
+            }
+
+            /* ── Model Settings ── */
+            function loadSettings() {
+              try {
+                var saved = localStorage.getItem(SETTINGS_KEY);
+                if (saved) {
+                  var s = JSON.parse(saved);
+                  if (typeof s.initTime  === 'number') modelSettings.initTime  = s.initTime;
+                  if (typeof s.finalTime === 'number') modelSettings.finalTime = s.finalTime;
+                  if (typeof s.dt        === 'number') modelSettings.dt        = s.dt;
+                }
+              } catch(e) {}
+              updateSettingsToolbarHint();
+            }
+
+            function openSettingsModal() {
+              _pendingDt = modelSettings.dt;
+              document.getElementById('settings-init-time').value  = modelSettings.initTime;
+              document.getElementById('settings-final-time').value = modelSettings.finalTime;
+              updateDtButtons(_pendingDt);
+              document.getElementById('settings-modal').style.display = 'flex';
+              setTimeout(function() { document.getElementById('settings-final-time').focus(); }, 30);
+            }
+
+            function closeSettingsModal() {
+              document.getElementById('settings-modal').style.display = 'none';
+            }
+
+            function selectDt(val) {
+              _pendingDt = val;
+              updateDtButtons(val);
+            }
+
+            function updateDtButtons(val) {
+              var btns = document.querySelectorAll('.settings-dt-btn');
+              btns.forEach(function(btn) {
+                btn.classList.toggle('active', parseFloat(btn.getAttribute('data-dt')) === val);
+              });
+            }
+
+            function saveSettings() {
+              var initTime  = parseFloat(document.getElementById('settings-init-time').value);
+              var finalTime = parseFloat(document.getElementById('settings-final-time').value);
+              if (isNaN(initTime))  initTime  = 0;
+              if (isNaN(finalTime) || finalTime <= initTime) finalTime = initTime + 100;
+              modelSettings.initTime  = initTime;
+              modelSettings.finalTime = finalTime;
+              modelSettings.dt        = _pendingDt;
+              try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(modelSettings)); } catch(e) {}
+              updateSettingsToolbarHint();
+              closeSettingsModal();
+            }
+
+            function updateSettingsToolbarHint() {
+              var hint = document.getElementById('settings-hint');
+              if (hint) hint.textContent = 'T=' + modelSettings.finalTime + ' · dt=' + modelSettings.dt;
             }
 
             // Convert any user-facing label into a valid JS identifier.
@@ -489,10 +1035,18 @@
               buildTemplates();
 
               load();
+              loadSettings();
               setMode('pointer', 'pointer');
 
               document.getElementById('formula-input').addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') closeFormulaModal();
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveFormula();
+              });
+              document.getElementById('formula-vars-search').addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                  if (this.value) { this.value = ''; renderFormulaBadges(''); }
+                  else closeFormulaModal();
+                }
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveFormula();
               });
             }
@@ -876,9 +1430,9 @@
 
               initLines.push('');
               initLines.push('    // Simulation settings');
-              initLines.push('    this.dt = 0.1;');
-              initLines.push('    this.initTime = 0;');
-              initLines.push('    this.finalTime = 100;');
+              initLines.push('    this.dt = ' + modelSettings.dt + ';');
+              initLines.push('    this.initTime = ' + modelSettings.initTime + ';');
+              initLines.push('    this.finalTime = ' + modelSettings.finalTime + ';');
 
               // ---- build update() body ----
               var insideLoop = [];
@@ -1029,6 +1583,19 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
                   <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14H6L5 6'/><path d='M10 11v6M14 11v6'/><path d='M9 6V4h6v2'/></svg>
                   Clear
                 </button>
+
+                <div class='toolbar-sep'></div>
+
+                <button id='settings_button' class='tool-btn' onclick='openSettingsModal();' title='Model Settings — configure time range and step size'>
+                  <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>
+                    <line x1='4' y1='21' x2='4' y2='14'/><line x1='4' y1='10' x2='4' y2='3'/>
+                    <line x1='12' y1='21' x2='12' y2='12'/><line x1='12' y1='8' x2='12' y2='3'/>
+                    <line x1='20' y1='21' x2='20' y2='16'/><line x1='20' y1='12' x2='20' y2='3'/>
+                    <line x1='1' y1='14' x2='7' y2='14'/><line x1='9' y1='8' x2='15' y2='8'/><line x1='17' y1='16' x2='23' y2='16'/>
+                  </svg>
+                  Settings
+                  <span id='settings-hint' style='font-size:0.55rem; color:#4a88c8; font-family:monospace; margin-top:-2px;'>T=100 · dt=1</span>
+                </button>
               </nav>
               <div
                 id='myDiagramDiv'
@@ -1055,8 +1622,26 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
     <div id='formula-modal'>
       <div id='formula-modal-box'>
         <h3><span id='formula-modal-prefix'>Formula</span> for: <span id='formula-node-label'></span></h3>
-        <p class='formula-hint'>Click to insert:</p>
-        <div id='formula-vars-container'></div>
+        <div class='formula-vars-header'>
+          <p class='formula-hint'>Click to insert:</p>
+          <span id='formula-vars-count' class='formula-vars-count'></span>
+        </div>
+        <div class='formula-search-wrap'>
+          <svg class='formula-search-icon' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>
+            <circle cx='6.5' cy='6.5' r='4.5'/>
+            <line x1='10' y1='10' x2='14' y2='14'/>
+          </svg>
+          <input
+            id='formula-vars-search'
+            type='text'
+            placeholder='Filter variables…'
+            autocomplete='off'
+            spellcheck='false'
+            aria-label='Filter variables'
+            oninput='renderFormulaBadges(this.value)'
+          />
+        </div>
+        <div id='formula-vars-container' role='list' aria-label='Available variables'></div>
         <textarea
           id='formula-input'
           spellcheck='false'
@@ -1065,9 +1650,102 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
         ></textarea>
         <p class='formula-modal-hint'>Ctrl+Enter to save &nbsp;·&nbsp; Esc to cancel</p>
         <div class='formula-modal-footer'>
+          <button type='button' class='formula-fx-btn' onclick='openFxModal()'>
+            <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 7h16M4 12h10M4 17h7'/><circle cx='19' cy='17' r='3'/><path d='m21.5 19.5-1.5-1.5'/></svg>
+            fx
+          </button>
           <button onclick='closeFormulaModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
           <button onclick='saveFormula()' style='background:#0e7a3c; color:#fff;'>Save</button>
         </div>
+      </div>
+    </div>
+    <!-- Model Settings popup -->
+    <div id='settings-modal'>
+      <div id='settings-modal-box'>
+        <div class='settings-header'>
+          <h3>
+            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>
+              <line x1='4' y1='21' x2='4' y2='14'/><line x1='4' y1='10' x2='4' y2='3'/>
+              <line x1='12' y1='21' x2='12' y2='12'/><line x1='12' y1='8' x2='12' y2='3'/>
+              <line x1='20' y1='21' x2='20' y2='16'/><line x1='20' y1='12' x2='20' y2='3'/>
+              <line x1='1' y1='14' x2='7' y2='14'/><line x1='9' y1='8' x2='15' y2='8'/><line x1='17' y1='16' x2='23' y2='16'/>
+            </svg>
+            Model Settings
+          </h3>
+          <button class='settings-close' onclick='closeSettingsModal()' aria-label='Close settings'>&times;</button>
+        </div>
+        <div class='settings-body'>
+          <div class='settings-field'>
+            <label class='settings-label' for='settings-init-time'>Initial Time</label>
+            <input
+              id='settings-init-time'
+              type='number'
+              class='settings-input'
+              value='0'
+              min='0'
+              step='1'
+              placeholder='0'
+              onkeydown='if(event.key==="Enter") saveSettings(); if(event.key==="Escape") closeSettingsModal();'
+            />
+          </div>
+          <div class='settings-field'>
+            <label class='settings-label' for='settings-final-time'>Final Time</label>
+            <input
+              id='settings-final-time'
+              type='number'
+              class='settings-input'
+              value='100'
+              min='1'
+              step='1'
+              placeholder='100'
+              onkeydown='if(event.key==="Enter") saveSettings(); if(event.key==="Escape") closeSettingsModal();'
+            />
+          </div>
+          <div class='settings-field'>
+            <label class='settings-label'>Time Step (dt)</label>
+            <div class='settings-dt-group' role='group' aria-label='Time step'>
+              <button type='button' class='settings-dt-btn' data-dt='2'        onclick='selectDt(2)'>2</button>
+              <button type='button' class='settings-dt-btn' data-dt='1'        onclick='selectDt(1)'>1</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.5'      onclick='selectDt(0.5)'>0.5</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.25'     onclick='selectDt(0.25)'>0.25</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.125'    onclick='selectDt(0.125)'>0.125</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.0625'   onclick='selectDt(0.0625)'>0.0625</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.03125'  onclick='selectDt(0.03125)'>0.03125</button>
+              <button type='button' class='settings-dt-btn' data-dt='0.015625' onclick='selectDt(0.015625)'>0.015625</button>
+            </div>
+          </div>
+        </div>
+        <div class='settings-footer'>
+          <button onclick='closeSettingsModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
+          <button onclick='saveSettings()' style='background:#0e7a3c; color:#fff;'>Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- fx function picker popup -->
+    <div id='fx-modal'>
+      <div id='fx-modal-box'>
+        <div class='fx-modal-header'>
+          <h3>Functions &mdash; DynaFlux Standard Library</h3>
+          <button class='fx-modal-close' onclick='closeFxModal()' title='Close' aria-label='Close function picker'>&times;</button>
+        </div>
+        <div class='fx-search-wrap'>
+          <svg class='fx-search-icon' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>
+            <circle cx='6.5' cy='6.5' r='4.5'/><line x1='10' y1='10' x2='14' y2='14'/>
+          </svg>
+          <input
+            id='fx-search'
+            type='text'
+            placeholder='Search functions… (DELAY, PULSE, SIN…)'
+            autocomplete='off'
+            spellcheck='false'
+            aria-label='Search functions'
+            oninput='renderFxList(this.value)'
+            onkeydown='if(event.key==="Escape") closeFxModal()'
+          />
+        </div>
+        <div id='fx-list' role='list' aria-label='Available functions'></div>
+        <p class='fx-modal-hint'>Click a row or the Insert button — the snippet is added at the cursor position in your formula</p>
       </div>
     </div>
   </body>
