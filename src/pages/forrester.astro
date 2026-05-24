@@ -574,6 +574,52 @@
             var modelSettings = { initTime: 0, finalTime: 100, dt: 1 };
 
             // Returns true if the formula references model variables (this.xxx)
+            /**
+             * Given a formula string (may be a plain number or a JS expression),
+             * returns { min, max, step } suitable for a TKAdjustableNumber slider.
+             *
+             * Strategy:
+             *   - Parse the first numeric token from the formula.
+             *   - Derive the order of magnitude N = floor(log10(|v|)).
+             *   - max  = ceiling of (3 × |v|) to the nearest 1/2/5/10 × 10^N.
+             *   - step = 10^(N-1)  (one decade below the value → ~10 steps per unit).
+             *   - min  = 0 for positives, -max for negatives.
+             *   - Falls back to {0, 10, 0.1} for dynamic formulas or zero values.
+             *
+             * Examples:
+             *   0.02  → { min:0, max:0.1,  step:0.001 }
+             *   0.5   → { min:0, max:1,    step:0.01  }
+             *   1     → { min:0, max:5,    step:0.1   }
+             *   100   → { min:0, max:500,  step:10    }
+             *   200   → { min:0, max:1000, step:10    }
+             *   1000  → { min:0, max:5000, step:100   }
+             */
+            function computeSliderBounds(formulaStr) {
+              var v = parseFloat(formulaStr);
+              if (isNaN(v) || !isFinite(v)) return { min: 0, max: 10,  step: 0.1  };
+              if (v === 0)                  return { min: -1, max: 1,   step: 0.01 };
+
+              var abs  = Math.abs(v);
+              var exp  = Math.floor(Math.log10(abs));   // e.g. 0.02→-2, 100→2
+              var base = Math.pow(10, exp);
+              var f    = (3 * abs) / base;              // 3× in units of base
+
+              // Ceiling to nearest 1 / 2 / 5 / 10 multiple of base
+              var niceMax;
+              if      (f <= 1) niceMax = base;
+              else if (f <= 2) niceMax = 2 * base;
+              else if (f <= 5) niceMax = 5 * base;
+              else             niceMax = 10 * base;
+
+              var min  = v >= 0 ? 0       : -niceMax;
+              var max  = v >= 0 ? niceMax : 0;
+              var step = Math.pow(10, exp - 1);
+
+              // Strip floating-point noise
+              function r(n) { return Math.round(n * 1e8) / 1e8; }
+              return { min: r(min), max: r(max), step: r(step) };
+            }
+
             function isDynamic(formula) {
               return Boolean(formula && /\bthis\./.test(formula));
             }
@@ -1512,12 +1558,17 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
               // ---- build HTML panel ----
               var htmlLines = [];
               htmlLines.push('<p id="example">');
-              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="1" data-max="500"></span>');
+
+              // Final Time slider — bounds relative to the configured value
+              var ftb = computeSliderBounds(modelSettings.finalTime);
+              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="1" data-max="' + ftb.max + '" data-step="' + ftb.step + '"></span>');
+
               if (variables.length > 0) {
                 variables.forEach(function(v) {
                   var lbl         = toVarName(v.label || v.key);
                   var displayName = v.label || v.key;
-                  htmlLines.push('  ' + displayName + ' <span data-var="' + lbl + '" class="TKAdjustableNumber" data-min="0" data-max="10" data-step="0.01"></span>');
+                  var b           = computeSliderBounds(v.formula);
+                  htmlLines.push('  ' + displayName + ' <span data-var="' + lbl + '" class="TKAdjustableNumber" data-min="' + b.min + '" data-max="' + b.max + '" data-step="' + b.step + '"></span>');
                 });
               }
               htmlLines.push('</p>');

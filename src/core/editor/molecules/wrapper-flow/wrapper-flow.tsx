@@ -32,13 +32,6 @@ const WrapperFlow: React.FC<WrapperFlowProps> = (props) => {
           ${getWrapperHead('Dinamica de Sistemas', baseCode, '')}
           ${getWrapperBody(html)}
           `);
-        const iframeBody = iframeDocument.body;
-        if (iframeBody) {
-          iframeBody.style.overflow = 'hidden';
-          iframeBody.style.height = '100%';
-          iframeBody.style.margin = '0';
-          iframeBody.style.padding = '0';
-        }
         iframeDocument.close();
       }
     }

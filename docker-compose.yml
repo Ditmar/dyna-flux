@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dyna-flux-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dynaflux
+      POSTGRES_PASSWORD: dynaflux
+      POSTGRES_DB: dynaflux
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dynaflux -d dynaflux"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

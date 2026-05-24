@@ -48,7 +48,7 @@ const getWrapperTangle = (model: string, options: string = '') => {
 
 const getWrapperBody = (bodyHtml: string) => {
     return `
-        <body onload="setUpTangle();">
+        <body onload="setUpTangle();" style="margin:0;padding:0;overflow-x:hidden;">
         ${bodyHtml}
     </body>
     `
