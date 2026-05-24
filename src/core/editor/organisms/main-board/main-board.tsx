@@ -80,6 +80,7 @@ const MainBoard = () => {
   const [projects, setProjects]             = useState<Project[]>([]);
   const [projectName, setProjectName]       = useState(() => localStorage.getItem(LS_PROJECT_NAME) ?? 'Untitled');
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => localStorage.getItem(LS_PROJECT_ID));
+  const [currentProjectIsPublic, setCurrentProjectIsPublic] = useState(false);
   const [isSaving, setIsSaving]             = useState(false);
 
   // ── Check auth on mount ─────────────────────────────────────────────────
@@ -99,6 +100,31 @@ const MainBoard = () => {
   }, []);
 
   useEffect(() => { if (authUser) fetchProjects(); }, [authUser, fetchProjects]);
+
+  // ── Deep-link: load shared project from URL ?p=<id> ────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('p');
+    if (!shareId) return;
+
+    fetch(`/api/projects/public/${shareId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(project => {
+        if (!project) return;
+        setCurrentProjectId(project.id);
+        setProjectName(project.name);
+        setCurrentProjectIsPublic(true);
+        localStorage.setItem(LS_PROJECT_ID, project.id);
+        localStorage.setItem(LS_PROJECT_NAME, project.name);
+        if (project.diagram) localStorage.setItem('dyna-flux:diagram', project.diagram);
+        if (project.settings) localStorage.setItem('dyna-flux:settings', project.settings);
+        if (project.code) { setCode(project.code); localStorage.setItem(LS_CODE, project.code); }
+        if (project.html) { setHtmlCode(project.html); localStorage.setItem(LS_HTML, project.html); }
+        window.history.replaceState(null, '', `/?p=${project.id}`);
+      })
+      .catch(() => { /* ignore */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Forrester postMessage ───────────────────────────────────────────────
   useEffect(() => {
@@ -199,6 +225,7 @@ const MainBoard = () => {
 
       setCurrentProjectId(project.id);
       setProjectName(project.name);
+      setCurrentProjectIsPublic(Boolean(project.isPublic));
       localStorage.setItem(LS_PROJECT_ID, project.id);
       localStorage.setItem(LS_PROJECT_NAME, project.name);
 
@@ -230,8 +257,26 @@ const MainBoard = () => {
   const handleNewProject = () => {
     setCurrentProjectId(null);
     setProjectName('Untitled');
+    setCurrentProjectIsPublic(false);
     localStorage.removeItem(LS_PROJECT_ID);
     localStorage.removeItem(LS_PROJECT_NAME);
+  };
+
+  // ── Share project ───────────────────────────────────────────────────────
+  const handleShareProject = async (id: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: true }),
+      });
+      if (res.ok) {
+        setCurrentProjectIsPublic(true);
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, isPublic: true } : p));
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+    }
   };
 
   // ── Other handlers ──────────────────────────────────────────────────────
@@ -263,9 +308,11 @@ const MainBoard = () => {
         onNewProject={handleNewProject}
         onLoadProject={handleLoadProject}
         onDeleteProject={handleDeleteProject}
+        onShareProject={handleShareProject}
         projects={projects}
         isSaving={isSaving}
         currentProjectId={currentProjectId}
+        currentProjectIsPublic={currentProjectIsPublic}
         authUser={authUser}
         onOpenAuth={() => setShowAuth(true)}
         onLogout={handleLogout}

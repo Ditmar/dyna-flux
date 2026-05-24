@@ -1,6 +1,7 @@
 export interface Project {
   id: string;
   name: string;
+  isPublic?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,9 +23,11 @@ export interface HeaderProps {
   onNewProject: () => void;
   onLoadProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
+  onShareProject: (id: string) => void;
   projects: Project[];
   isSaving: boolean;
   currentProjectId: string | null;
+  currentProjectIsPublic: boolean;
   // auth
   authUser: AuthUser | null;
   onOpenAuth: () => void;

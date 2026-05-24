@@ -8,7 +8,7 @@ export const GET: APIRoute = async ({ cookies }) => {
 
   const projects = await prisma.project.findMany({
     where: { userId: auth.userId },
-    select: { id: true, name: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, isPublic: true, createdAt: true, updatedAt: true },
     orderBy: { updatedAt: 'desc' },
   });
 

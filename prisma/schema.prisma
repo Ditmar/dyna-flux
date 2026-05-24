@@ -27,6 +27,7 @@ model Project {
   code      String?
   html      String?
   settings  String?
+  isPublic  Boolean  @default(false) @map("is_public")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

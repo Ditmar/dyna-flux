@@ -3,25 +3,35 @@ import type { HeaderProps, Project } from './top-bar.types';
 import styles from './top-bar.module.scss';
 import {
   Play, Square, GitBranch, FileCode, Save, FolderOpen,
-  Trash2, Plus, Loader2, LogIn, LogOut, UserPlus,
+  Trash2, Plus, Loader2, LogIn, LogOut, UserPlus, Share2, Check,
 } from 'lucide-react';
 
 const Header = (props: HeaderProps) => {
   const {
     play, visibleForrester, baseModel,
     projectName, onProjectNameChange,
-    onSave, onNewProject, onLoadProject, onDeleteProject,
-    projects, isSaving, currentProjectId,
+    onSave, onNewProject, onLoadProject, onDeleteProject, onShareProject,
+    projects, isSaving, currentProjectId, currentProjectIsPublic,
     authUser, onOpenAuth, onLogout,
   } = props;
 
   const [isPlaying, setPlaying]               = useState(false);
   const [isForresterVisible, setForresterVisible] = useState(false);
   const [dropdownOpen, setDropdownOpen]        = useState(false);
+  const [copied, setCopied]                    = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handlerPlay = () => { const n = !isPlaying; setPlaying(n); play(n); };
   const showForrester = () => { const n = !isForresterVisible; setForresterVisible(n); visibleForrester(n); };
+
+  const handleShare = async () => {
+    if (!currentProjectId) return;
+    await onShareProject(currentProjectId);
+    const url = `${window.location.origin}/?p=${currentProjectId}`;
+    try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -67,6 +77,17 @@ const Header = (props: HeaderProps) => {
               : <Save size={14} />}
             {isSaving ? 'Saving…' : 'Save'}
           </button>
+
+          {currentProjectId && (
+            <button
+              className={`${styles.btn} ${currentProjectIsPublic ? styles.btnShare : styles.btnSecondary}`}
+              onClick={handleShare}
+              title={currentProjectIsPublic ? 'Link copied! Project is public' : 'Share — make public & copy link'}
+            >
+              {copied ? <Check size={14} /> : <Share2 size={14} />}
+              {copied ? 'Copied!' : 'Share'}
+            </button>
+          )}
 
           <div className={styles.projectDropdownWrap} ref={dropdownRef}>
             <button

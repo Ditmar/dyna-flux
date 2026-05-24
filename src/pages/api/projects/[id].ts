@@ -8,6 +8,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
   const project = await prisma.project.findFirst({
     where: { id: params.id!, userId: auth.userId },
+    select: { id: true, name: true, diagram: true, code: true, html: true, settings: true, isPublic: true, createdAt: true, updatedAt: true },
   });
 
   if (!project) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
@@ -36,6 +37,24 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
   });
 
   return new Response(JSON.stringify(updated), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+export const PATCH: APIRoute = async ({ params, request, cookies }) => {
+  const auth = await getAuthUser(cookies);
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+
+  const { isPublic } = await request.json();
+
+  const result = await prisma.project.updateMany({
+    where: { id: params.id!, userId: auth.userId },
+    data: { isPublic: Boolean(isPublic) },
+  });
+
+  if (result.count === 0) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+
+  return new Response(JSON.stringify({ isPublic: Boolean(isPublic) }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };

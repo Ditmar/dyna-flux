@@ -72,6 +72,17 @@
     }
 }
 
+.btnShare {
+    background: #064e3b;
+    color: #34d399;
+    flex-shrink: 0;
+
+    &:hover {
+        background: #065f46;
+        color: #6ee7b7;
+    }
+}
+
 /* ── Project dropdown ── */
 .projectDropdownWrap {
     position: relative;
