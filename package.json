@@ -38,6 +38,10 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.34.8",
+    "@rollup/rollup-linux-x64-musl": "4.34.8"
+  },
   "devDependencies": {
     "@astrojs/react": "^4.2.0",
     "@chromatic-com/storybook": "3.2.4",
