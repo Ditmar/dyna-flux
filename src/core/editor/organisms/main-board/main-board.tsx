@@ -82,6 +82,7 @@ const MainBoard = () => {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => localStorage.getItem(LS_PROJECT_ID));
   const [currentProjectIsPublic, setCurrentProjectIsPublic] = useState(false);
   const [isSaving, setIsSaving]             = useState(false);
+  const [forresterReloadSignal, setForresterReloadSignal] = useState(0);
 
   // ── Check auth on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -121,6 +122,7 @@ const MainBoard = () => {
         if (project.code) { setCode(project.code); localStorage.setItem(LS_CODE, project.code); }
         if (project.html) { setHtmlCode(project.html); localStorage.setItem(LS_HTML, project.html); }
         window.history.replaceState(null, '', `/?p=${project.id}`);
+        setForresterReloadSignal(s => s + 1);
       })
       .catch(() => { /* ignore */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,6 +236,7 @@ const MainBoard = () => {
 
       if (project.code) { setCode(project.code); localStorage.setItem(LS_CODE, project.code); }
       if (project.html) { setHtmlCode(project.html); localStorage.setItem(LS_HTML, project.html); }
+      setForresterReloadSignal(s => s + 1);
     } catch (err) {
       console.error('Load failed', err);
     }
@@ -370,7 +373,7 @@ const MainBoard = () => {
           style={{ width: rightWidth, display: fullscreen === 'left' ? 'none' : undefined }}
         >
           <Panel width="100%">
-            <IframeViewer src='/forrester' title='Iframe Example' isVisibleForrester={isVisibleForrester} />
+            <IframeViewer src='/forrester' title='Iframe Example' isVisibleForrester={isVisibleForrester} reloadSignal={forresterReloadSignal} />
             {isMouseMove && <div className={styles.overlay}></div>}
             <WrapperFlow model={code} html={htmlCode} isPlay={play} />
           </Panel>
