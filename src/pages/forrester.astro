@@ -537,6 +537,268 @@
         transition: opacity 0.15s;
       }
       .settings-footer button:hover { opacity: 0.82; }
+
+      /* ── With Lookup modal ── */
+      #lookup-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.65);
+        z-index: 10001;
+        align-items: center;
+        justify-content: center;
+      }
+      #lookup-modal-box {
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 18px 20px 16px;
+        width: 660px;
+        max-width: 96vw;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.75);
+        border: 1px solid #3c3c3c;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      .lookup-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .lookup-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #ccc;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .lookup-header h3 svg { color: #4ec9b0; }
+      .lookup-close {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 1.3rem;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        line-height: 1;
+        transition: color 0.15s, background 0.15s;
+      }
+      .lookup-close:hover { color: #ccc; background: #333; }
+      .lookup-var-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .lookup-var-label {
+        font-size: 0.68rem;
+        color: #858585;
+        white-space: nowrap;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      #lookup-input-var {
+        flex: 1;
+        background: #111;
+        border: 1px solid #383838;
+        border-radius: 4px;
+        color: #9cdcfe;
+        font-size: 0.8rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        padding: 5px 8px;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      #lookup-input-var:focus { border-color: #007acc; box-shadow: 0 0 0 1px #007acc; }
+      .lookup-body {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+        min-height: 200px;
+      }
+      .lookup-left {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 0 0 190px;
+      }
+      .lookup-table-controls {
+        display: flex;
+        gap: 5px;
+      }
+      .lookup-ctrl-btn {
+        padding: 4px 10px;
+        background: #252525;
+        border: 1px solid #3c3c3c;
+        border-radius: 4px;
+        color: #ccc;
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s;
+        font-weight: 500;
+      }
+      .lookup-ctrl-btn:hover { background: #333; color: #fff; }
+      .lookup-ctrl-btn-add { background: #152336; border-color: #2d5a8e; color: #9cdcfe; }
+      .lookup-ctrl-btn-add:hover { background: #2d5a8e; color: #fff; }
+      .lookup-ctrl-btn-clr { color: #f87171; border-color: #3c1a1a; }
+      .lookup-ctrl-btn-clr:hover { background: #2a1010; }
+      .lookup-table-wrap {
+        flex: 1;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #333 #111;
+        border: 1px solid #2a2a2a;
+        border-radius: 4px;
+        background: #111;
+      }
+      #lookup-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+      }
+      #lookup-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        text-align: center;
+        color: #858585;
+        font-size: 0.67rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        padding: 5px 6px;
+        border-bottom: 1px solid #333;
+        background: #151515;
+      }
+      .lookup-cell-input {
+        width: 68px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        color: #d4d4d4;
+        font-size: 0.78rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        padding: 3px 5px;
+        outline: none;
+        box-sizing: border-box;
+        text-align: right;
+        -moz-appearance: textfield;
+      }
+      .lookup-cell-input::-webkit-inner-spin-button,
+      .lookup-cell-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+      .lookup-cell-input:focus {
+        border-color: #007acc;
+        background: #0d0d0d;
+        box-shadow: 0 0 0 1px #007acc;
+      }
+      #lookup-table td {
+        padding: 3px 4px;
+        border-bottom: 1px solid #1a1a1a;
+        text-align: center;
+      }
+      .lookup-row-del {
+        background: none;
+        border: none;
+        color: #444;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 1px 5px;
+        border-radius: 3px;
+        transition: color 0.12s, background 0.12s;
+        line-height: 1;
+      }
+      .lookup-row-del:hover { color: #f87171; background: #2a1010; }
+      .lookup-right {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+        background: #0d1a0d;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      #lookup-graph {
+        width: 100%;
+        height: 100%;
+        min-height: 200px;
+        display: block;
+      }
+      .lookup-bounds {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 8px 10px;
+        background: #111;
+        border: 1px solid #1e1e1e;
+        border-radius: 5px;
+        flex-wrap: wrap;
+      }
+      .lookup-bound-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .lookup-bound-label {
+        font-size: 0.67rem;
+        color: #555;
+        white-space: nowrap;
+        font-family: 'Consolas', 'Courier New', monospace;
+      }
+      .lookup-bound-input {
+        width: 72px;
+        background: #0d0d0d;
+        border: 1px solid #2a2a2a;
+        border-radius: 3px;
+        color: #777;
+        font-size: 0.72rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        padding: 3px 6px;
+        outline: none;
+        box-sizing: border-box;
+        -moz-appearance: textfield;
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .lookup-bound-input::-webkit-inner-spin-button,
+      .lookup-bound-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+      .lookup-bound-input:focus { border-color: #007acc; color: #d4d4d4; }
+      .lookup-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .lookup-footer button {
+        padding: 5px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 500;
+        transition: opacity 0.15s;
+      }
+      .lookup-footer button:hover { opacity: 0.82; }
+      /* ── lookup button in formula footer ── */
+      .formula-lookup-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        background: #1a2d1a;
+        border: 1px solid #2d5a2d;
+        border-radius: 4px;
+        color: #4ec9b0;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        font-family: 'Consolas', 'Courier New', monospace;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .formula-lookup-btn:hover { background: #2d5a2d; border-color: #4a8a4a; color: #fff; }
     </style>
     <title>
       System Dynamics Diagram Editor: Storage, Flows, Control Factors | GoJS
@@ -570,6 +832,7 @@
             var STORAGE_KEY = 'dyna-flux:diagram';
             var SETTINGS_KEY = 'dyna-flux:settings';
             var _formulaAllVars = [];
+            var _formulaIncidentVars = []; // only vars connected via influence arrows (no fallback)
             var _pendingDt = 1;
             var modelSettings = { initTime: 0, finalTime: 100, dt: 1 };
 
@@ -666,11 +929,14 @@
                   if (l.category === 'influence' && l.to === nodeKey) influencerKeys[l.from] = true;
                 });
                 var hasInfluences = Object.keys(influencerKeys).length > 0;
+                _formulaIncidentVars = [];
                 if (hasInfluences) {
                   Object.keys(influencerKeys).forEach(function(key) {
                     var n = nodeMap[key];
                     if (n && (n.category === 'stock' || n.category === 'variable')) {
-                      relatedVars.push({ varName: 'this.' + toVarName(n.label || n.key), display: n.label || n.key });
+                      var v = { varName: 'this.' + toVarName(n.label || n.key), display: n.label || n.key };
+                      relatedVars.push(v);
+                      _formulaIncidentVars.push(v);
                     }
                   });
                 } else {
@@ -807,6 +1073,8 @@
               { cat: 'Delay / Smooth', name: 'DELAY1',  sig: "DELAY1('id', input, delayTime, this.time, this.dt, init)", desc: 'First-order exponential delay',                                  snippet: "DELAY1('d1', this.x, 5, this.time, this.dt, 0)" },
               { cat: 'Delay / Smooth', name: 'DELAY3',  sig: "DELAY3('id', input, delayTime, this.time, this.dt, init)", desc: 'Third-order pipeline delay — sharper, less distorted response', snippet: "DELAY3('d3', this.x, 5, this.time, this.dt, 0)" },
               { cat: 'Delay / Smooth', name: 'TREND',   sig: "TREND('id', input, avgTime, this.time, this.dt)",         desc: 'Relative rate of change: (input − smooth) / (smooth × avgTime)', snippet: "TREND('t1', this.x, 5, this.time, this.dt)" },
+              // Lookup
+              { cat: 'Lookup', name: 'WITH_LOOKUP', sig: 'WITH_LOOKUP(x, [[x0,y0],[x1,y1],…])', desc: 'Piecewise linear interpolation — maps input x to output via a table of points', snippet: 'WITH_LOOKUP(this.x, [[0,0],[5,50],[10,100]])' },
             ];
 
             function openFxModal() {
@@ -884,6 +1152,306 @@
             function insertFxSnippet(snippet) {
               insertAtCursor(snippet);
               closeFxModal();
+              setTimeout(function() { document.getElementById('formula-input').focus(); }, 30);
+            }
+
+            /* ── With Lookup ── */
+            var _lookupPoints = [];
+
+            function openLookupModal() {
+              // Try to parse an existing WITH_LOOKUP call from the formula
+              var formulaEl = document.getElementById('formula-input');
+              var formula   = formulaEl ? formulaEl.value : '';
+              _lookupPoints = [];
+
+              var match = formula.match(/WITH_LOOKUP\s*\(\s*(this\.[A-Za-z_$][A-Za-z0-9_$]*)\s*,\s*\[([\s\S]*?)\]\s*\)/);
+              var preVar = '';
+              if (match) {
+                preVar = match[1];
+                try {
+                  var raw = JSON.parse('[' + match[2] + ']');
+                  raw.forEach(function(pt) {
+                    if (Array.isArray(pt) && pt.length >= 2) {
+                      _lookupPoints.push({ x: Number(pt[0]), y: Number(pt[1]) });
+                    }
+                  });
+                } catch(e) { _lookupPoints = []; }
+              }
+
+              // Populate variable dropdown — incident vars first, then system vars
+              var sel = document.getElementById('lookup-input-var');
+              sel.innerHTML = '';
+
+              var shadows = _formulaAllVars.filter(function(v) { return v.isShadow; });
+
+              function addOpt(parent, v, badge) {
+                var opt = document.createElement('option');
+                opt.value = v.varName;
+                opt.textContent = (badge ? badge + ' ' : '') + v.display + '  (' + v.varName + ')';
+                parent.appendChild(opt);
+              }
+
+              if (_formulaIncidentVars.length > 0) {
+                // Connected variables group
+                var grp1 = document.createElement('optgroup');
+                grp1.label = 'Connected variables';
+                _formulaIncidentVars.forEach(function(v) { addOpt(grp1, v, '→'); });
+                sel.appendChild(grp1);
+              } else {
+                // Fallback: all non-shadow vars
+                var grp1 = document.createElement('optgroup');
+                grp1.label = 'All variables';
+                _formulaAllVars.filter(function(v) { return !v.isShadow; })
+                  .forEach(function(v) { addOpt(grp1, v, ''); });
+                sel.appendChild(grp1);
+              }
+
+              // System variables group
+              var grp2 = document.createElement('optgroup');
+              grp2.label = 'System';
+              shadows.forEach(function(v) { addOpt(grp2, v, ''); });
+              sel.appendChild(grp2);
+
+              // Auto-select if only one incident variable and no pre-existing value
+              if (preVar) {
+                sel.value = preVar;
+              } else if (_formulaIncidentVars.length === 1) {
+                sel.value = _formulaIncidentVars[0].varName;
+              }
+
+              // Reset bounds to auto
+              ['lookup-xmin','lookup-xmax','lookup-ymin','lookup-ymax'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) { el.value = ''; delete el.dataset.manual; }
+              });
+
+              renderLookupTable();
+              updateLookupGraph();
+              document.getElementById('lookup-modal').style.display = 'flex';
+            }
+
+            function closeLookupModal() {
+              document.getElementById('lookup-modal').style.display = 'none';
+            }
+
+            function addLookupRow() {
+              var last = _lookupPoints[_lookupPoints.length - 1];
+              var nextX = last ? last.x + 1 : 0;
+              _lookupPoints.push({ x: nextX, y: 0 });
+              renderLookupTable();
+              updateLookupGraph();
+              // Focus the last x-input
+              setTimeout(function() {
+                var inputs = document.querySelectorAll('#lookup-tbody .lookup-cell-input');
+                if (inputs.length) inputs[inputs.length - 2].focus();
+              }, 20);
+            }
+
+            function removeLookupRow(i) {
+              _lookupPoints.splice(i, 1);
+              renderLookupTable();
+              updateLookupGraph();
+            }
+
+            function clearLookupPoints() {
+              _lookupPoints = [];
+              renderLookupTable();
+              updateLookupGraph();
+            }
+
+            function renderLookupTable() {
+              var tbody = document.getElementById('lookup-tbody');
+              if (!tbody) return;
+              tbody.innerHTML = '';
+
+              if (_lookupPoints.length === 0) {
+                var tr = document.createElement('tr');
+                var td = document.createElement('td');
+                td.colSpan = 3;
+                td.style.cssText = 'color:#444; font-size:0.72rem; font-style:italic; padding:16px 8px; text-align:center;';
+                td.textContent = 'No points yet — click + Add';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+              }
+
+              _lookupPoints.forEach(function(pt, i) {
+                var tr = document.createElement('tr');
+
+                function makeInput(col, val) {
+                  var input = document.createElement('input');
+                  input.type = 'number';
+                  input.className = 'lookup-cell-input';
+                  input.value = val;
+                  input.step = 'any';
+                  input.setAttribute('data-idx', i);
+                  input.setAttribute('data-col', col);
+                  input.oninput = function() {
+                    var idx = parseInt(this.getAttribute('data-idx'));
+                    var c   = this.getAttribute('data-col');
+                    _lookupPoints[idx][c] = parseFloat(this.value);
+                    updateLookupGraph();
+                  };
+                  return input;
+                }
+
+                var tdX = document.createElement('td');
+                tdX.appendChild(makeInput('x', pt.x));
+
+                var tdY = document.createElement('td');
+                tdY.appendChild(makeInput('y', pt.y));
+
+                var tdDel = document.createElement('td');
+                var btn   = document.createElement('button');
+                btn.type  = 'button';
+                btn.className = 'lookup-row-del';
+                btn.innerHTML = '&times;';
+                btn.title     = 'Remove row';
+                (function(idx) { btn.onclick = function() { removeLookupRow(idx); }; })(i);
+                tdDel.appendChild(btn);
+
+                tr.appendChild(tdX);
+                tr.appendChild(tdY);
+                tr.appendChild(tdDel);
+                tbody.appendChild(tr);
+              });
+            }
+
+            function _lookupNiceBounds(values, defaultSpan) {
+              if (!values || values.length === 0) return { min: 0, max: defaultSpan };
+              var mn = Math.min.apply(null, values);
+              var mx = Math.max.apply(null, values);
+              if (mn === mx) { mn -= 1; mx += 1; }
+              var pad = (mx - mn) * 0.12;
+              return { min: mn - pad, max: mx + pad };
+            }
+
+            function _lookupFormatTick(v) {
+              if (v === 0) return '0';
+              var abs = Math.abs(v);
+              if (abs >= 10000 || (abs < 0.01)) return v.toExponential(1);
+              return parseFloat(v.toPrecision(3)).toString();
+            }
+
+            function updateLookupGraph() {
+              var svg = document.getElementById('lookup-graph');
+              if (!svg) return;
+              var ns = 'http://www.w3.org/2000/svg';
+
+              var W = 380, H = 210;
+              var ml = 42, mr = 10, mt = 12, mb = 26;
+              var pw = W - ml - mr;
+              var ph = H - mt - mb;
+
+              svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+              while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+              // Sort by x for rendering
+              var pts = _lookupPoints
+                .filter(function(p) { return !isNaN(p.x) && !isNaN(p.y); })
+                .slice().sort(function(a, b) { return a.x - b.x; });
+
+              // Bounds — use manual input values if set, else auto
+              var autoBx = _lookupNiceBounds(pts.map(function(p) { return p.x; }), 10);
+              var autoBy = _lookupNiceBounds(pts.map(function(p) { return p.y; }), 10);
+
+              function readBound(id, auto) {
+                var el = document.getElementById(id);
+                if (el && el.dataset.manual) {
+                  var v = parseFloat(el.value);
+                  if (!isNaN(v)) return v;
+                }
+                if (el) el.value = parseFloat(auto.toPrecision(4));
+                return auto;
+              }
+
+              var xMin = readBound('lookup-xmin', autoBx.min);
+              var xMax = readBound('lookup-xmax', autoBx.max);
+              var yMin = readBound('lookup-ymin', autoBy.min);
+              var yMax = readBound('lookup-ymax', autoBy.max);
+              if (xMax <= xMin) xMax = xMin + 1;
+              if (yMax <= yMin) yMax = yMin + 1;
+
+              function sx(x) { return ml + (x - xMin) / (xMax - xMin) * pw; }
+              function sy(y) { return mt + ph - (y - yMin) / (yMax - yMin) * ph; }
+
+              function el(tag) { return document.createElementNS(ns, tag); }
+              function set(node, attrs) {
+                Object.keys(attrs).forEach(function(k) { node.setAttribute(k, attrs[k]); });
+                return node;
+              }
+
+              // Background
+              svg.appendChild(set(el('rect'), { x: ml, y: mt, width: pw, height: ph, fill: '#0d1a0d' }));
+
+              // Grid + tick labels
+              var nGrid = 5;
+              for (var i = 0; i <= nGrid; i++) {
+                var gx = ml + (i / nGrid) * pw;
+                var gy = mt + (i / nGrid) * ph;
+
+                svg.appendChild(set(el('line'), { x1: gx, y1: mt, x2: gx, y2: mt + ph, stroke: '#1a2a1a', 'stroke-width': '1' }));
+                svg.appendChild(set(el('line'), { x1: ml, y1: gy, x2: ml + pw, y2: gy,    stroke: '#1a2a1a', 'stroke-width': '1' }));
+
+                // X tick label
+                var xTk = el('text');
+                set(xTk, { x: gx, y: mt + ph + 16, 'text-anchor': 'middle', 'font-size': '8', fill: '#556655' });
+                xTk.textContent = _lookupFormatTick(xMin + (i / nGrid) * (xMax - xMin));
+                svg.appendChild(xTk);
+
+                // Y tick label
+                var yTk = el('text');
+                set(yTk, { x: ml - 4, y: mt + ph - (i / nGrid) * ph + 3, 'text-anchor': 'end', 'font-size': '8', fill: '#556655' });
+                yTk.textContent = _lookupFormatTick(yMin + (i / nGrid) * (yMax - yMin));
+                svg.appendChild(yTk);
+              }
+
+              // Axes
+              svg.appendChild(set(el('line'), { x1: ml, y1: mt + ph, x2: ml + pw, y2: mt + ph, stroke: '#3a4a3a', 'stroke-width': '1.5' }));
+              svg.appendChild(set(el('line'), { x1: ml, y1: mt,      x2: ml,      y2: mt + ph, stroke: '#3a4a3a', 'stroke-width': '1.5' }));
+
+              if (pts.length === 0) {
+                var noData = el('text');
+                set(noData, { x: ml + pw / 2, y: mt + ph / 2, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': '12', fill: '#c4a000' });
+                noData.textContent = 'No Data';
+                svg.appendChild(noData);
+                return;
+              }
+
+              // Piecewise linear path
+              if (pts.length >= 2) {
+                var d = pts.map(function(p, i) {
+                  return (i === 0 ? 'M' : 'L') + sx(p.x).toFixed(1) + ',' + sy(p.y).toFixed(1);
+                }).join(' ');
+                svg.appendChild(set(el('path'), { d: d, stroke: '#4ec9b0', 'stroke-width': '1.8', fill: 'none', 'stroke-linejoin': 'round' }));
+              }
+
+              // Point markers
+              pts.forEach(function(p) {
+                svg.appendChild(set(el('circle'), { cx: sx(p.x).toFixed(1), cy: sy(p.y).toFixed(1), r: '3.5', fill: '#4ec9b0', stroke: '#0d1a0d', 'stroke-width': '1.2' }));
+              });
+            }
+
+            function saveLookup() {
+              var sel      = document.getElementById('lookup-input-var');
+              var inputVar = sel ? sel.value : '';
+              if (!inputVar) {
+                sel && sel.focus();
+                sel && (sel.style.borderColor = '#f87171');
+                setTimeout(function() { sel && (sel.style.borderColor = ''); }, 1200);
+                return;
+              }
+              var validPts = _lookupPoints.filter(function(p) { return !isNaN(p.x) && !isNaN(p.y); });
+              if (validPts.length < 2) {
+                var ctrl = document.querySelector('.lookup-ctrl-btn-add');
+                if (ctrl) { ctrl.style.boxShadow = '0 0 0 2px #f87171'; setTimeout(function() { ctrl.style.boxShadow = ''; }, 1200); }
+                return;
+              }
+              var sorted  = validPts.slice().sort(function(a, b) { return a.x - b.x; });
+              var ptsJSON = sorted.map(function(p) { return '[' + p.x + ',' + p.y + ']'; }).join(',');
+              var snippet = 'WITH_LOOKUP(' + inputVar + ', [' + ptsJSON + '])';
+              insertAtCursor(snippet);
+              closeLookupModal();
               setTimeout(function() { document.getElementById('formula-input').focus(); }, 30);
             }
 
@@ -1709,6 +2277,10 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
             <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 7h16M4 12h10M4 17h7'/><circle cx='19' cy='17' r='3'/><path d='m21.5 19.5-1.5-1.5'/></svg>
             fx
           </button>
+          <button type='button' class='formula-lookup-btn' onclick='openLookupModal()' title='Insert a WITH_LOOKUP interpolation table'>
+            <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>
+            ~ lookup
+          </button>
           <button onclick='closeFormulaModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
           <button onclick='saveFormula()' style='background:#0e7a3c; color:#fff;'>Save</button>
         </div>
@@ -1773,6 +2345,92 @@ insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
         <div class='settings-footer'>
           <button onclick='closeSettingsModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
           <button onclick='saveSettings()' style='background:#0e7a3c; color:#fff;'>Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- With Lookup popup -->
+    <div id='lookup-modal'>
+      <div id='lookup-modal-box'>
+        <div class='lookup-header'>
+          <h3>
+            <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>
+            With Lookup
+          </h3>
+          <button class='lookup-close' onclick='closeLookupModal()' aria-label='Close lookup editor'>&times;</button>
+        </div>
+
+        <div class='lookup-var-row'>
+          <span class='lookup-var-label'>Input (x):</span>
+          <select id='lookup-input-var'>
+            <option value=''>-- select input variable --</option>
+          </select>
+        </div>
+
+        <div class='lookup-body'>
+          <!-- Left: controls + table -->
+          <div class='lookup-left'>
+            <div class='lookup-table-controls'>
+              <button type='button' class='lookup-ctrl-btn lookup-ctrl-btn-add' onclick='addLookupRow()' title='Add a new point'>
+                <svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>
+                Add
+              </button>
+              <button type='button' class='lookup-ctrl-btn lookup-ctrl-btn-clr' onclick='clearLookupPoints()' title='Remove all points'>Clear</button>
+            </div>
+            <div class='lookup-table-wrap'>
+              <table id='lookup-table'>
+                <thead>
+                  <tr>
+                    <th>Input</th>
+                    <th>Output</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id='lookup-tbody'></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: graph -->
+          <div class='lookup-right'>
+            <svg id='lookup-graph' viewBox='0 0 380 210' preserveAspectRatio='xMidYMid meet'></svg>
+          </div>
+        </div>
+
+        <!-- Axis bounds (auto-updated, manually overrideable) -->
+        <div class='lookup-bounds'>
+          <div class='lookup-bound-group'>
+            <span class='lookup-bound-label'>X-min</span>
+            <input id='lookup-xmin' type='number' class='lookup-bound-input' step='any' placeholder='auto'
+              oninput='this.dataset.manual=1; updateLookupGraph()'
+              onfocus='this.dataset.manual=1'/>
+          </div>
+          <div class='lookup-bound-group'>
+            <span class='lookup-bound-label'>X-max</span>
+            <input id='lookup-xmax' type='number' class='lookup-bound-input' step='any' placeholder='auto'
+              oninput='this.dataset.manual=1; updateLookupGraph()'
+              onfocus='this.dataset.manual=1'/>
+          </div>
+          <div class='lookup-bound-group'>
+            <span class='lookup-bound-label'>Y-min</span>
+            <input id='lookup-ymin' type='number' class='lookup-bound-input' step='any' placeholder='auto'
+              oninput='this.dataset.manual=1; updateLookupGraph()'
+              onfocus='this.dataset.manual=1'/>
+          </div>
+          <div class='lookup-bound-group'>
+            <span class='lookup-bound-label'>Y-max</span>
+            <input id='lookup-ymax' type='number' class='lookup-bound-input' step='any' placeholder='auto'
+              oninput='this.dataset.manual=1; updateLookupGraph()'
+              onfocus='this.dataset.manual=1'/>
+          </div>
+          <button type='button' class='lookup-ctrl-btn' title='Reset bounds to auto'
+            onclick='["lookup-xmin","lookup-xmax","lookup-ymin","lookup-ymax"].forEach(function(id){ var e=document.getElementById(id); e.value=""; delete e.dataset.manual; }); updateLookupGraph();'
+            style='margin-left:auto; font-size:0.65rem; color:#555;'>Auto</button>
+        </div>
+
+        <div class='lookup-footer'>
+          <button onclick='closeLookupModal()' style='background:#3c3c3c; color:#ccc;'>Cancel</button>
+          <button onclick='saveLookup()' style='background:#0e6b4a; color:#fff;'>Insert</button>
         </div>
       </div>
     </div>

@@ -192,3 +192,34 @@ function TREND(id, input, averaging_time, time, dt) {
   var smoothed = s.level;
   return smoothed === 0 ? 0 : (input - smoothed) / (smoothed * at);
 }
+
+/* ══════════════════════════════════════════════════════
+   LOOKUP INTERPOLATION
+   ══════════════════════════════════════════════════════ */
+
+/**
+ * WITH_LOOKUP(x, points)
+ * Piecewise linear interpolation over a sorted array of [x, y] pairs.
+ * Clamps (extrapolates flat) beyond the first and last points.
+ *
+ * @param {number} x      - Input value to evaluate.
+ * @param {Array}  points - Sorted array of [x, y] pairs, e.g. [[0,0],[5,50],[10,100]].
+ * @returns {number} Linearly interpolated output value.
+ *
+ * Example: WITH_LOOKUP(this.time, [[0,0],[10,100],[20,50]])
+ */
+function WITH_LOOKUP(x, points) {
+  if (!points || points.length === 0) return 0;
+  if (points.length === 1) return points[0][1];
+  if (x <= points[0][0]) return points[0][1];
+  if (x >= points[points.length - 1][0]) return points[points.length - 1][1];
+  for (var i = 0; i < points.length - 1; i++) {
+    var x0 = points[i][0], y0 = points[i][1];
+    var x1 = points[i + 1][0], y1 = points[i + 1][1];
+    if (x >= x0 && x <= x1) {
+      if (x1 === x0) return y0;
+      return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+  }
+  return points[points.length - 1][1];
+}
