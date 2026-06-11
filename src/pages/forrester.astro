@@ -876,7 +876,7 @@
 
               var min  = v >= 0 ? 0       : -niceMax;
               var max  = v >= 0 ? niceMax : 0;
-              var step = Math.pow(10, exp - 1);
+              var step = Math.pow(10, exp - 2);
 
               // Strip floating-point noise
               function r(n) { return Math.round(n * 1e8) / 1e8; }
@@ -1936,216 +1936,254 @@
             }
 
             function generateModel() {
-              const modelJson = JSON.parse(myDiagram.model.toJson());
-              const nodes = modelJson.nodeDataArray || [];
-              const links = modelJson.linkDataArray || [];
+              var modelJson = JSON.parse(myDiagram.model.toJson());
+              var allNodes  = modelJson.nodeDataArray || [];
+              var allLinks  = modelJson.linkDataArray || [];
 
-              const stocks    = nodes.filter(function(n) { return n.category === 'stock'; });
-              const variables = nodes.filter(function(n) { return n.category === 'variable'; });
-              const valves    = nodes.filter(function(n) { return n.category === 'valve'; });
-              const flows     = links.filter(function(l) { return l.category === 'flow'; });
+              var stocks    = allNodes.filter(function(n) { return n.category === 'stock'; });
+              var variables = allNodes.filter(function(n) { return n.category === 'variable'; });
+              var valves    = allNodes.filter(function(n) { return n.category === 'valve'; });
+              var flowLinks = allLinks.filter(function(l) { return l.category === 'flow'; });
 
-              // map valve key → sanitized JS identifier
-              var valveMap = {};
-              valves.forEach(function(v) { valveMap[v.key] = toVarName(v.label || v.key); });
+              // ── Helpers ────────────────────────────────────────────────────────────
+              function lbl(n) { return toVarName(n.label || n.key); }
 
-              // map sanitized valve name → formula
-              var valveFormulaMap = {};
-              valves.forEach(function(v) { valveFormulaMap[toVarName(v.label || v.key)] = v.formula || ''; });
+              // System variables — never tracked as model dependencies
+              var SYSTEM_VARS = { time: 1, dt: 1, finalTime: 1, initTime: 1 };
 
-              // determine inflows / outflows per stock
-              var stockFlows = {};
-              stocks.forEach(function(s) {
-                stockFlows[s.key] = { label: toVarName(s.label || s.key), inflows: [], outflows: [] };
-              });
-
-              flows.forEach(function(flow) {
-                var valveKey  = flow.labelKeys && flow.labelKeys[0];
-                var flowName  = valveKey ? valveMap[valveKey] : toVarName(flow.text || 'flow');
-                if (stockFlows[flow.from]) stockFlows[flow.from].outflows.push(flowName);
-                if (stockFlows[flow.to])   stockFlows[flow.to].inflows.push(flowName);
-              });
-
-              // ---- build initialize() body with topological sort ----
-
-              // Extract all this.xxx references from an expression
-              function getInitDeps(expr) {
-                if (!expr) return [];
-                var deps = [];
-                var re = /this\.([A-Za-z_][A-Za-z0-9_]*)/g;
-                var m;
-                while ((m = re.exec(expr)) !== null) deps.push(m[1]);
+              // Extract sanitized this.xxx dependency names from any formula string
+              function getDeps(formula) {
+                if (!formula || !formula.trim()) return [];
+                var seen = {}, deps = [], re = /this\.([A-Za-z_$][A-Za-z0-9_$]*)/g, m;
+                while ((m = re.exec(formula)) !== null) {
+                  if (!SYSTEM_VARS[m[1]] && !seen[m[1]]) { seen[m[1]] = true; deps.push(m[1]); }
+                }
                 return deps;
               }
 
-              // Build a unified list of declarations: { key, line, deps[] }
-              var allDecls = [];
+              // Known model variable names (used to prune external/unknown deps)
+              var knownNames = {};
+              variables.forEach(function(v) { knownNames[lbl(v)] = true; });
+              valves.forEach(function(v)    { knownNames[lbl(v)] = true; });
+              stocks.forEach(function(s)    { knownNames[lbl(s)] = true; });
 
-              variables.forEach(function(v) {
-                var lbl     = toVarName(v.label || v.key);
-                var formula = v.formula;
-                var line, deps;
-                if (!formula || !formula.trim()) {
-                  line = '    this.' + lbl + ' = 1;  // TODO: set value';
-                  deps = [];
-                } else if (!isDynamic(formula)) {
-                  line = '    this.' + lbl + ' = ' + formula + ';';
-                  deps = getInitDeps(formula);
-                } else {
-                  line = '    this.' + lbl + ' = 0;  // computed in update()';
-                  deps = [];
+              // ── Topological sort with cycle detection ──────────────────────────────
+              // Returns { ordered: [name,...], cycles: [[name,...],...]  }
+              function topoSort(names, getDepsForName) {
+                var visited = {}, inStack = {}, ordered = [], cycles = [];
+                function visit(name, path) {
+                  if (inStack[name]) {
+                    var i = path.indexOf(name);
+                    cycles.push(path.slice(i).concat(name));
+                    return;
+                  }
+                  if (visited[name]) return;
+                  inStack[name] = true;
+                  getDepsForName(name).forEach(function(dep) {
+                    if (knownNames[dep]) visit(dep, path.concat(name));
+                  });
+                  inStack[name] = false;
+                  visited[name] = true;
+                  ordered.push(name);
                 }
-                allDecls.push({ key: lbl, line: line, deps: deps, kind: 'variable' });
-              });
-
-              stocks.forEach(function(s) {
-                var lbl     = toVarName(s.label || s.key);
-                var initVal = (s.initialValue !== undefined && String(s.initialValue).trim())
-                  ? s.initialValue : '100';
-                var comment = (s.initialValue !== undefined && String(s.initialValue).trim())
-                  ? '' : '  // TODO: set initial value';
-                var line = '    this.' + lbl + ' = ' + initVal + ';' + comment;
-                var deps = getInitDeps(String(initVal));
-                allDecls.push({ key: lbl, line: line, deps: deps, kind: 'stock' });
-              });
-
-              // DFS topological sort
-              var declMap = {};
-              allDecls.forEach(function(d) { declMap[d.key] = d; });
-
-              var visited = {};
-              var sorted  = [];
-
-              function visitDecl(key) {
-                if (visited[key]) return;
-                visited[key] = true;
-                var d = declMap[key];
-                if (d) {
-                  d.deps.forEach(function(dep) { visitDecl(dep); });
-                  sorted.push(d);
-                }
+                names.forEach(function(n) { visit(n, []); });
+                return { ordered: ordered, cycles: cycles };
               }
 
-              allDecls.forEach(function(d) { visitDecl(d.key); });
-
-              // Output in topological order, adding section headers on kind transitions
-              var initLines = [];
-              var lastKind = null;
-              sorted.forEach(function(d) {
-                if (d.kind !== lastKind) {
-                  if (lastKind !== null) initLines.push('');
-                  initLines.push(d.kind === 'stock'
-                    ? '    // Stocks (state variables)'
-                    : '    // Parameters / auxiliary variables');
-                  lastKind = d.kind;
-                }
-                initLines.push(d.line);
+              // ── Build lookup structures ────────────────────────────────────────────
+              var valveKeyName = {}, valveFormulas = {};
+              valves.forEach(function(v) {
+                valveKeyName[v.key] = lbl(v);
+                valveFormulas[lbl(v)] = v.formula || '';
               });
+
+              var stockFlowMap = {};
+              stocks.forEach(function(s) {
+                stockFlowMap[s.key] = { name: lbl(s), inflows: [], outflows: [] };
+              });
+
+              var flowNames = [];
+              flowLinks.forEach(function(fl) {
+                var vk = fl.labelKeys && fl.labelKeys[0];
+                var fn = vk ? valveKeyName[vk] : toVarName(fl.text || 'flow');
+                if (fn && flowNames.indexOf(fn) < 0) flowNames.push(fn);
+                if (stockFlowMap[fl.from]) stockFlowMap[fl.from].outflows.push(fn);
+                if (stockFlowMap[fl.to])   stockFlowMap[fl.to].inflows.push(fn);
+              });
+
+              // ── Classify variables ─────────────────────────────────────────────────
+              // Parameters: constant formula (no this.xxx references)
+              // Computed:   dynamic formula (contains this.xxx)
+              // Todo:       no formula at all
+              var paramVars   = variables.filter(function(v) { return v.formula && v.formula.trim() && !isDynamic(v.formula); });
+              var computedVars = variables.filter(function(v) { return isDynamic(v.formula); });
+              var todoVars    = variables.filter(function(v)  { return !v.formula || !v.formula.trim(); });
+
+              var paramByName = {}, stockByName = {};
+              paramVars.forEach(function(v)  { paramByName[lbl(v)] = v; });
+              stocks.forEach(function(s)     { stockByName[lbl(s)] = s; });
+
+              // ── Topological sort for initialize() ─────────────────────────────────
+              // Sort parameters (they can reference each other)
+              var paramSort = topoSort(paramVars.map(lbl), function(name) {
+                var v = paramByName[name]; return v ? getDeps(v.formula) : [];
+              });
+
+              // Sort stock initial values (can reference parameters or other stocks)
+              var stockSort = topoSort(stocks.map(lbl), function(name) {
+                var s = stockByName[name];
+                return s && s.initialValue ? getDeps(String(s.initialValue)) : [];
+              });
+
+              // ── Build initialize() lines ───────────────────────────────────────────
+              var initLines = [];
+
+              initLines.push('    // ── Input parameters ──────────────────────────────────────');
+              if (paramSort.ordered.length > 0) {
+                paramSort.ordered.forEach(function(name) {
+                  var v = paramByName[name]; if (!v) return;
+                  initLines.push('    this.' + name + ' = ' + v.formula + ';');
+                });
+              } else { initLines.push('    // (none)'); }
 
               initLines.push('');
-              initLines.push('    // Simulation settings');
-              initLines.push('    this.dt = ' + modelSettings.dt + ';');
-              initLines.push('    this.initTime = ' + modelSettings.initTime + ';');
+              initLines.push('    // ── Computed auxiliary variables (initial placeholder) ────');
+              if (computedVars.length > 0 || todoVars.length > 0) {
+                computedVars.forEach(function(v) {
+                  initLines.push('    this.' + lbl(v) + ' = 0;  // computed in update()');
+                });
+                todoVars.forEach(function(v) {
+                  initLines.push('    this.' + lbl(v) + ' = 1;  // TODO: add formula');
+                });
+              } else { initLines.push('    // (none)'); }
+
+              initLines.push('');
+              initLines.push('    // ── Stocks (state variables) ─────────────────────────────');
+              if (stockSort.ordered.length > 0) {
+                stockSort.ordered.forEach(function(name) {
+                  var s = stockByName[name]; if (!s) return;
+                  var iv   = (s.initialValue !== undefined && String(s.initialValue).trim()) ? s.initialValue : '100';
+                  var todo = (s.initialValue !== undefined && String(s.initialValue).trim()) ? '' : '  // TODO: set initial value';
+                  initLines.push('    this.' + name + ' = ' + iv + ';' + todo);
+                });
+              } else {
+                stocks.forEach(function(s) {
+                  var iv = (s.initialValue !== undefined && String(s.initialValue).trim()) ? s.initialValue : '100';
+                  initLines.push('    this.' + lbl(s) + ' = ' + iv + ';');
+                });
+              }
+
+              initLines.push('');
+              initLines.push('    // ── Simulation settings ───────────────────────────────────');
+              initLines.push('    this.time      = ' + modelSettings.initTime + ';');
+              initLines.push('    this.dt        = ' + modelSettings.dt + ';');
+              initLines.push('    this.initTime  = ' + modelSettings.initTime + ';');
               initLines.push('    this.finalTime = ' + modelSettings.finalTime + ';');
 
-              // ---- build update() body ----
+              // ── Topological sort for the simulation loop ───────────────────────────
+              // Items: computed vars + todo vars + flow valves — sorted together
+              var loopMap = {};
+              computedVars.forEach(function(v) { loopMap[lbl(v)] = { formula: v.formula, isValve: false }; });
+              todoVars.forEach(function(v)      { loopMap[lbl(v)] = { formula: null,     isValve: false }; });
+              flowNames.forEach(function(name)  { loopMap[name]   = { formula: valveFormulas[name] || '', isValve: true }; });
+
+              var loopSort = topoSort(Object.keys(loopMap), function(name) {
+                var it = loopMap[name]; return it ? getDeps(it.formula || '') : [];
+              });
+
+              // Gather all detected cycles
+              var allCycles = paramSort.cycles.concat(stockSort.cycles).concat(loopSort.cycles);
+
+              // ── Build simulation loop lines ────────────────────────────────────────
               var insideLoop = [];
+              var lastIsValve = null;
 
-              // Only dynamic variables (formula references this.xxx) go inside the loop
-              var dynamicVars = variables.filter(function(v) {
-                return v.formula && isDynamic(v.formula);
+              loopSort.ordered.forEach(function(name) {
+                var item = loopMap[name]; if (!item) return;
+                // Section header when category switches
+                if (lastIsValve === null || item.isValve !== lastIsValve) {
+                  if (lastIsValve !== null) insideLoop.push('');
+                  insideLoop.push('      // ── ' + (item.isValve ? 'Flow rates' : 'Auxiliary variables') + ' ──');
+                  lastIsValve = item.isValve;
+                }
+                if (item.isValve) {
+                  insideLoop.push(item.formula && item.formula.trim()
+                    ? '      const ' + name + ' = ' + item.formula + ';'
+                    : '      const ' + name + ' = 0;  // TODO: formula for ' + name);
+                } else {
+                  insideLoop.push(item.formula && item.formula.trim()
+                    ? '      this.' + name + ' = ' + item.formula + ';'
+                    : '      this.' + name + ' = 0;  // TODO: formula');
+                }
               });
-              if (dynamicVars.length > 0) {
-                insideLoop.push('      // Auxiliary variables (dynamic)');
-                dynamicVars.forEach(function(v) {
-                  insideLoop.push('      this.' + toVarName(v.label || v.key) + ' = ' + v.formula + ';');
-                });
-                insideLoop.push('');
-              }
 
-              var uniqueFlowNames = [];
-              flows.forEach(function(flow) {
-                var valveKey = flow.labelKeys && flow.labelKeys[0];
-                var name = valveKey ? valveMap[valveKey] : toVarName(flow.text || 'flow');
-                if (uniqueFlowNames.indexOf(name) === -1) uniqueFlowNames.push(name);
-              });
-
-              if (uniqueFlowNames.length > 0) {
-                insideLoop.push('      // Flow rates');
-                uniqueFlowNames.forEach(function(name) {
-                  var formula = valveFormulaMap[name];
-                  if (formula && formula.trim()) {
-                    insideLoop.push('      const ' + name + ' = ' + formula + ';');
-                  } else {
-                    insideLoop.push('      const ' + name + ' = 0;  // TODO: define formula for ' + name);
-                  }
-                });
-                insideLoop.push('');
-              }
-
-              insideLoop.push('      // Stock updates (Euler integration)');
+              if (insideLoop.length > 0) insideLoop.push('');
+              insideLoop.push('      // ── Stock updates (Euler integration) ──');
               stocks.forEach(function(s) {
-                var sf = stockFlows[s.key];
-                var label = sf.label;
+                var sf = stockFlowMap[s.key]; if (!sf) return;
                 var inStr  = sf.inflows.length  ? sf.inflows.join(' + ')  : null;
                 var outStr = sf.outflows.length ? sf.outflows.join(' + ') : null;
-
                 var net;
                 if (inStr && outStr)  net = '(' + inStr + ') - (' + outStr + ')';
                 else if (inStr)       net = inStr;
                 else if (outStr)      net = '-(' + outStr + ')';
                 else                  net = '0  // no flows connected';
-
-                insideLoop.push('      this.' + label + ' += (' + net + ') * this.dt;');
+                insideLoop.push('      this.' + sf.name + ' += (' + net + ') * this.dt;');
               });
 
-              // ---- reset stocks to initial values before each simulation run ----
+              // ── Reset lines (before loop, restores stocks to initial values) ────────
               var resetLines = [];
               stocks.forEach(function(s) {
-                var lbl     = toVarName(s.label || s.key);
-                var initVal = (s.initialValue !== undefined && String(s.initialValue).trim())
-                  ? s.initialValue : '100';
-                resetLines.push('    this.' + lbl + ' = ' + initVal + ';');
+                var iv = (s.initialValue !== undefined && String(s.initialValue).trim()) ? s.initialValue : '100';
+                resetLines.push('    this.' + lbl(s) + ' = ' + iv + ';');
               });
 
+              // ── Cycle warning block ────────────────────────────────────────────────
+              var cycleBlock = allCycles.length > 0
+                ? '\n  // ⚠ WARNING — Circular dependencies detected:\n' +
+                  allCycles.map(function(c) { return '  //   Circular dependency: ' + c.join(' → '); }).join('\n') + '\n'
+                : '';
+
+              // ── Assemble model code ────────────────────────────────────────────────
               var modelCode =
 'const model = {\n' +
 '  initialize: function () {\n' +
 initLines.join('\n') + '\n' +
-'  },\n' +
+'  },' + cycleBlock + '\n' +
 '  update: function () {\n' +
-'    // Reset stocks to initial values before running simulation\n' +
+'    // Reset stocks to initial values\n' +
 resetLines.join('\n') + '\n' +
 '\n' +
 '    for (this.time = this.initTime; this.time < this.finalTime; this.time += this.dt) {\n' +
-insideLoop.map(function(l){ return l; }).join('\n') + '\n' +
+insideLoop.join('\n') + '\n' +
 '    }\n' +
 '  }\n' +
 '};\n';
 
-              // ---- build HTML panel ----
+              // ── HTML panel ─────────────────────────────────────────────────────────
               var htmlLines = [];
               htmlLines.push('<p id="example">');
 
-              // Final Time slider — bounds relative to the configured value
               var ftb = computeSliderBounds(modelSettings.finalTime);
-              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="1" data-max="' + ftb.max + '" data-step="' + ftb.step + '"></span>');
+              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="' + modelSettings.initTime + '" data-max="' + ftb.max + '" data-step="' + ftb.step + '"></span>');
 
-              if (variables.length > 0) {
-                variables.forEach(function(v) {
-                  var lbl         = toVarName(v.label || v.key);
-                  var displayName = v.label || v.key;
-                  var b           = computeSliderBounds(v.formula);
-                  htmlLines.push('  ' + displayName + ' <span data-var="' + lbl + '" class="TKAdjustableNumber" data-min="' + b.min + '" data-max="' + b.max + '" data-step="' + b.step + '"></span>');
-                });
-              }
+              // Only parameter variables get adjustable sliders; computed vars are derived
+              paramSort.ordered.forEach(function(name) {
+                var v = paramByName[name]; if (!v) return;
+                var b = computeSliderBounds(v.formula);
+                htmlLines.push('  ' + (v.label || v.key) + ' <span data-var="' + name + '" class="TKAdjustableNumber" data-min="' + b.min + '" data-max="' + b.max + '" data-step="' + b.step + '"></span>');
+              });
+              todoVars.forEach(function(v) {
+                htmlLines.push('  ' + (v.label || v.key) + ' <span data-var="' + lbl(v) + '" class="TKAdjustableNumber" data-min="0" data-max="10" data-step="0.01"></span>');
+              });
+
               htmlLines.push('</p>');
               stocks.forEach(function(s) {
-                var lbl = toVarName(s.label || s.key);
-                htmlLines.push("<div id='" + lbl + "_plot' class='plotly' data-plotly='[time, " + lbl + "]'></div>");
+                var name = lbl(s);
+                htmlLines.push("<div id='" + name + "_plot' class='plotly' data-plotly='[time, " + name + "]'></div>");
               });
-              var htmlCode = htmlLines.join('\n');
 
+              var htmlCode = htmlLines.join('\n');
               window.parent.postMessage({ type: 'forresterModel', code: modelCode, html: htmlCode }, '*');
             }
 
