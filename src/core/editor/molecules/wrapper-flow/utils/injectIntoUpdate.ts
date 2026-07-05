@@ -1,52 +1,65 @@
+import { detectBlockIndices } from './parsecode';
+
+// Given the index of a '{', returns the index of its matching '}'.
+function findMatchingBraceEnd(code: string, openBraceIndex: number): number {
+  let depth = 1;
+  for (let i = openBraceIndex + 1; i < code.length; i++) {
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return code.length;
+}
+
 function injectBeforeLoop(code: string, beforeLoopCode: string) {
-  const updateRegex = /update:\s*function\s*\(\)\s*\{([\s\S]*?)\n\s*\}/;
-  const match = code.match(updateRegex);
-  if (!match) return code;
+  const { startIndex, endIndex } = detectBlockIndices(code, 'update');
+  if (startIndex < 0) return code;
 
-  const updateBody = match[1];
-  const modifiedBody = beforeLoopCode.trim() + '\n' + updateBody;
+  const before = code.slice(0, startIndex);
+  const body = code.slice(startIndex, endIndex);
+  const after = code.slice(endIndex);
 
-  const newUpdateFunction = `update: function () {\n${modifiedBody}\n  }`;
-  return code.replace(updateRegex, newUpdateFunction);
+  const newBody = `\n${beforeLoopCode.trim()}\n${body.replace(/^\s*\n/, '')}`;
+  return before + newBody + after;
 }
 
 function injectInsideLoopStart(code: string, insideLoopStartCode: string) {
-  return code.replace(
+  const { startIndex, endIndex } = detectBlockIndices(code, 'update');
+  if (startIndex < 0) return code;
+
+  const before = code.slice(0, startIndex);
+  const body = code.slice(startIndex, endIndex);
+  const after = code.slice(endIndex);
+
+  const newBody = body.replace(
     /(for\s*\([^)]*\)\s*\{)/,
     `$1\n${insideLoopStartCode.trim()}`
   );
+  return before + newBody + after;
 }
 
 function injectAfterLoop(code: string, afterLoopCode: string) {
-  const lines = code.split('\n');
-  const result = [];
-  let inFor = false;
-  let depth = 0;
+  const { startIndex, endIndex } = detectBlockIndices(code, 'update');
+  if (startIndex < 0) return code;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  const before = code.slice(0, startIndex);
+  const body = code.slice(startIndex, endIndex);
+  const after = code.slice(endIndex);
 
-    if (!inFor && /^\s*for\s*\(/.test(line)) {
-      inFor = true;
-    }
+  const forMatch = body.match(/for\s*\([^)]*\)\s*\{/);
+  if (!forMatch || forMatch.index === undefined) return code;
 
-    if (inFor) {
-      if (line.includes('{')) depth++;
-      if (line.includes('}')) depth--;
+  const openBraceIndex = forMatch.index + forMatch[0].length - 1;
+  const closeBraceIndex = findMatchingBraceEnd(body, openBraceIndex);
 
-      result.push(line);
+  const newBody =
+    body.slice(0, closeBraceIndex + 1) +
+    '\n' + afterLoopCode.trim() + '\n' +
+    body.slice(closeBraceIndex + 1);
 
-      if (depth === 0 && inFor) {
-        result.push(afterLoopCode.trim());
-        inFor = false;
-        continue;
-      }
-    } else {
-      result.push(line);
-    }
-  }
-
-  return result.join('\n');
+  return before + newBody + after;
 }
 
-export { injectBeforeLoop, injectInsideLoopStart, injectAfterLoop };	
+export { injectBeforeLoop, injectInsideLoopStart, injectAfterLoop };

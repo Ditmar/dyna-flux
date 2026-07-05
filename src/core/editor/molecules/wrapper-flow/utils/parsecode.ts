@@ -29,12 +29,28 @@ const initPlotly = (html: string) => {
     return code;
 }
 
+// Locates the body of `functionName: function () { ... }` by matching braces,
+// so it also works when other functions (with their own `{`/`}`) exist before it.
 const detectBlockIndices = (code: string, functionName: string) => {
     const functionRegex = new RegExp(`${functionName}\\s*:\\s*(function\\s*\(.*\)|\(.*\)\\s*=>)\\s*{`);
-    let startIndex = code.search(functionRegex);
-    const endIndex = code.length;
-    const subStartIndex = code.substring(startIndex, endIndex).indexOf('{');
-    startIndex = startIndex + subStartIndex + 1;
+    const headerMatch = code.match(functionRegex);
+    if (!headerMatch || headerMatch.index === undefined) {
+        return { startIndex: -1, endIndex: -1 };
+    }
+    const openBraceIndex = headerMatch.index + headerMatch[0].length - 1;
+    let depth = 1;
+    let endIndex = code.length;
+    for (let i = openBraceIndex + 1; i < code.length; i++) {
+        if (code[i] === '{') depth++;
+        else if (code[i] === '}') {
+            depth--;
+            if (depth === 0) {
+                endIndex = i;
+                break;
+            }
+        }
+    }
+    const startIndex = openBraceIndex + 1;
     return { startIndex, endIndex };
 }
 
