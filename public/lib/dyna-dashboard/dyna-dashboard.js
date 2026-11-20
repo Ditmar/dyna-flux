@@ -55,6 +55,76 @@
   const unique = (arr) => Array.from(new Set(arr.filter(Boolean)));
 
   // ──────────────────────────────────────────────────────────────────────
+  // Downsampling for charts
+  //
+  // Models with a small dt produce hundreds of thousands of points; drawing
+  // them all takes Plotly ~1 s per update, which freezes the page while a
+  // control is dragged. A chart a few hundred pixels wide cannot show more
+  // than a few thousand points anyway, so charts draw a reduced set while
+  // tables / CSV keep every simulation step.
+  // ──────────────────────────────────────────────────────────────────────
+
+  const MAX_POINTS_2D = 3000;
+  const MAX_POINTS_3D = 6000;
+
+  const isNum = (v) => typeof v === 'number' && isFinite(v);
+
+  /**
+   * Largest-Triangle-Three-Buckets: picks `threshold` indices that preserve the
+   * visual shape of the line (peaks and valleys are kept).
+   */
+  function lttb(X, Y, threshold) {
+    const n = Y.length;
+    if (threshold >= n || threshold < 3) return null;
+    const idx = new Array(threshold);
+    const every = (n - 2) / (threshold - 2);
+    let a = 0;
+    idx[0] = 0;
+    for (let i = 0; i < threshold - 2; i++) {
+      const avgStart = Math.floor((i + 1) * every) + 1;
+      const avgEnd = Math.min(Math.floor((i + 2) * every) + 1, n);
+      let avgX = 0, avgY = 0;
+      for (let j = avgStart; j < avgEnd; j++) { avgX += X[j]; avgY += Y[j]; }
+      const len = Math.max(1, avgEnd - avgStart);
+      avgX /= len; avgY /= len;
+
+      const rangeStart = Math.floor(i * every) + 1;
+      const rangeEnd = Math.floor((i + 1) * every) + 1;
+      const ax = X[a], ay = Y[a];
+      let maxArea = -1, next = rangeStart;
+      for (let j = rangeStart; j < rangeEnd; j++) {
+        const area = Math.abs((ax - avgX) * (Y[j] - ay) - (ax - X[j]) * (avgY - ay));
+        if (area > maxArea) { maxArea = area; next = j; }
+      }
+      idx[i + 1] = next;
+      a = next;
+    }
+    idx[threshold - 1] = n - 1;
+    return idx;
+  }
+
+  /** Evenly spaced indices (always keeps the first and the last point). */
+  function strideIndices(n, max) {
+    if (n <= max) return null;
+    const idx = [];
+    const step = (n - 1) / (max - 1);
+    for (let i = 0; i < max; i++) idx.push(Math.round(i * step));
+    return idx;
+  }
+
+  const pick = (arr, idx) => (idx ? idx.map((i) => arr[i]) : arr);
+
+  /** Reduce an (x, y) line to at most MAX_POINTS_2D points. */
+  function downsample2D(xs, ys) {
+    const n = Math.min(xs.length, ys.length);
+    if (n <= MAX_POINTS_2D) return { x: xs, y: ys };
+    let clean = true;
+    for (let i = 0; i < n; i++) if (!isNum(xs[i]) || !isNum(ys[i])) { clean = false; break; }
+    const idx = clean ? lttb(xs, ys, MAX_POINTS_2D) : strideIndices(n, MAX_POINTS_2D);
+    return { x: pick(xs, idx), y: pick(ys, idx) };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
   // Virtualized table: only the visible rows exist in the DOM, so tables
   // with hundreds of thousands of rows scroll smoothly without breaking.
   // ──────────────────────────────────────────────────────────────────────
@@ -316,21 +386,29 @@
       let traces;
       if (w.chartType === '3d') {
         const [y, z] = series;
-        traces = [{ type: 'scatter3d', mode: 'lines', x: xs, y: this.data[y] || [], z: this.data[z] || [], line: { width: 4, color: COLORWAY[0] } }];
+        const idx = strideIndices(xs.length, MAX_POINTS_3D);
+        traces = [{
+          type: 'scatter3d', mode: 'lines',
+          x: pick(xs, idx), y: pick(this.data[y] || [], idx), z: pick(this.data[z] || [], idx),
+          line: { width: 4, color: COLORWAY[0] },
+        }];
         layout.margin = { l: 0, r: 0, t: 0, b: 0 };
         layout.scene = { xaxis: { title: { text: x } }, yaxis: { title: { text: y || '' } }, zaxis: { title: { text: z || '' } } };
         layout.showlegend = false;
       } else {
-        traces = series.map((s) => ({
-          type: 'scatter',
-          mode: w.chartType === 'scatter' ? 'markers' : 'lines',
-          fill: w.chartType === 'area' ? 'tozeroy' : undefined,
-          marker: { size: 4 },
-          line: { width: 2 },
-          name: s,
-          x: xs,
-          y: this.data[s] || [],
-        }));
+        traces = series.map((s) => {
+          const pts = downsample2D(xs, this.data[s] || []);
+          return {
+            type: 'scatter',
+            mode: w.chartType === 'scatter' ? 'markers' : 'lines',
+            fill: w.chartType === 'area' ? 'tozeroy' : undefined,
+            marker: { size: 4 },
+            line: { width: 2 },
+            name: s,
+            x: pts.x,
+            y: pts.y,
+          };
+        });
       }
       Plotly.react(el, traces, layout, {
         responsive: true,

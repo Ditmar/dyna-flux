@@ -105,6 +105,8 @@ html.dr-dragging * {
 .dr-slider input[type='range'] {
   accent-color: var(--dr-accent);
   width: 140px;
+  touch-action: none; /* the drag is handled in JS, don't scroll the page */
+  cursor: ew-resize;
 }
 
 .dr-slider .dr-value {

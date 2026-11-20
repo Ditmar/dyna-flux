@@ -369,6 +369,93 @@
   // Controls
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── Drag tracking ──────────────────────────────────────────────────────
+  //
+  // Once a drag starts it must follow the mouse anywhere on the screen until
+  // the button is released. Pointer capture alone is not reliable here: the
+  // panel lives inside an iframe and several browsers stop delivering captured
+  // events once the pointer leaves the iframe. So we listen on this document
+  // AND on every same-origin ancestor document (the editor page), converting
+  // their coordinates into this document's coordinate space.
+
+  /** Same-origin windows from this one up to the top, with our viewport offset in each. */
+  function ancestorViews() {
+    const views = [{ win: window, dx: 0, dy: 0 }];
+    let win = window, dx = 0, dy = 0;
+    while (win.parent && win.parent !== win) {
+      let frameEl;
+      try {
+        frameEl = win.frameElement;           // null / throws when cross-origin
+        void win.parent.document;
+      } catch (e) { break; }
+      if (!frameEl) break;
+      const r = frameEl.getBoundingClientRect();
+      dx += r.left + frameEl.clientLeft;
+      dy += r.top + frameEl.clientTop;
+      win = win.parent;
+      views.push({ win, dx, dy });
+    }
+    return views;
+  }
+
+  /**
+   * Follow a drag that started with `downEvent` until the button is released.
+   * onMove(x, event) receives the pointer X in this document's client coordinates.
+   */
+  function trackDrag(downEvent, onMove, onEnd) {
+    const views = ancestorViews();
+    const target = downEvent.currentTarget;
+    try { target.setPointerCapture(downEvent.pointerId); } catch (e) { /* not essential */ }
+
+    let ended = false;
+    const offs = [];
+
+    const localX = (e) => {
+      const v = views.find((x) => x.win === e.view) || views.find((x) => x.win.document === (e.target && e.target.ownerDocument));
+      return e.clientX - (v ? v.dx : 0);
+    };
+    const onPointerMove = (e) => {
+      if (e.pointerType !== 'mouse' && e.pointerId !== downEvent.pointerId) return;
+      // Button released outside the browser window: no pointerup was delivered.
+      if (e.pointerType === 'mouse' && e.buttons === 0) { end(e); return; }
+      e.preventDefault();
+      onMove(localX(e), e);
+    };
+    const onPointerUp = (e) => {
+      if (e.pointerType !== 'mouse' && e.pointerId !== downEvent.pointerId) return;
+      end(e);
+    };
+    const end = (e) => {
+      if (ended) return;
+      ended = true;
+      offs.forEach((off) => off());
+      try { if (target.hasPointerCapture(downEvent.pointerId)) target.releasePointerCapture(downEvent.pointerId); } catch (err) { /* ignore */ }
+      onEnd(e);
+    };
+    const listen = (t, type, fn) => {
+      t.addEventListener(type, fn, true);
+      offs.push(() => t.removeEventListener(type, fn, true));
+    };
+
+    for (const { win } of views) {
+      const doc = win.document;
+      listen(doc, 'pointermove', onPointerMove);
+      listen(doc, 'pointerup', onPointerUp);
+      listen(doc, 'pointercancel', onPointerUp);
+      // No text selection / native drag-and-drop anywhere while dragging.
+      listen(doc, 'selectstart', (e) => e.preventDefault());
+      listen(doc, 'dragstart', (e) => e.preventDefault());
+      const root = doc.documentElement;
+      const prev = { cursor: root.style.cursor, select: root.style.userSelect };
+      root.style.cursor = 'ew-resize';
+      root.style.userSelect = 'none';
+      offs.push(() => { root.style.cursor = prev.cursor; root.style.userSelect = prev.select; });
+    }
+    // Window lost focus mid-drag (Alt+Tab…): stop instead of getting stuck.
+    listen(window, 'blur', end);
+    return end;
+  }
+
   /** Shared min/max/step parsing. Defaults match TangleKit (min 0, step 1). */
   function rangeOptions(options) {
     const min = num(options.min, 0);
@@ -403,9 +490,6 @@
 
       this._listeners = [];
       this._on(element, 'pointerdown', (e) => this._down(e));
-      this._on(element, 'pointermove', (e) => this._move(e));
-      this._on(element, 'pointerup', (e) => this._up(e));
-      this._on(element, 'pointercancel', (e) => this._up(e));
       this._on(element, 'dblclick', (e) => { e.preventDefault(); this._edit(); });
       this._on(element, 'keydown', (e) => this._key(e));
     }
@@ -440,16 +524,16 @@
     }
 
     _down(e) {
-      if (e.button !== 0 || this.editor) return;
+      if (e.button !== 0 || this.editor || this.drag) return;
       e.preventDefault();
       this.element.focus({ preventScroll: true });
-      this.element.setPointerCapture(e.pointerId);
       this.drag = { x: e.clientX, start: Number(this.runtime.getValue(this.variable)) || 0, moved: false };
+      trackDrag(e, (x, ev) => this._move(x, ev), () => this._up());
     }
 
-    _move(e) {
+    _move(x, e) {
       if (!this.drag) return;
-      const dx = e.clientX - this.drag.x;
+      const dx = x - this.drag.x;
       if (!this.drag.moved) {
         if (Math.abs(dx) < 3) return;
         this.drag.moved = true;
@@ -460,9 +544,8 @@
       this._set(this._snap(this.drag.start + (dx / px) * this.step));
     }
 
-    _up(e) {
+    _up() {
       if (!this.drag) return;
-      if (this.element.hasPointerCapture(e.pointerId)) this.element.releasePointerCapture(e.pointerId);
       const moved = this.drag.moved;
       this.drag = null;
       this.element.classList.remove('is-dragging', 'TKAdjustableNumberDown');
@@ -547,23 +630,50 @@
     }
   }
 
-  /** Native range slider. Options: data-min, data-max, data-step, data-show-value. */
+  /**
+   * Range slider. Options: data-min, data-max, data-step, data-show-value.
+   * Uses a native <input type=range> (keyboard, accessibility) but drives the
+   * mouse/touch drag itself, so the drag keeps going outside the slider/iframe.
+   */
   class Slider {
     constructor(element, options, runtime, variable) {
-      const { min, max, step } = rangeOptions(options);
+      const { min, max, step, decimals } = rangeOptions(options);
+      const hi = isFinite(max) ? max : min + 100 * step;
       this.runtime = runtime;
       this.variable = variable;
       element.classList.add('dr-slider');
 
-      this.input = document.createElement('input');
-      this.input.type = 'range';
-      this.input.min = String(min);
-      this.input.max = String(isFinite(max) ? max : min + 100 * step);
-      this.input.step = String(step);
-      this.input.setAttribute('aria-label', options.label || variable);
-      this.input.addEventListener('input', () => runtime.setValue(variable, parseFloat(this.input.value)));
-      this.input.addEventListener('change', () => runtime.flush());
-      element.appendChild(this.input);
+      const input = document.createElement('input');
+      this.input = input;
+      input.type = 'range';
+      input.min = String(min);
+      input.max = String(hi);
+      input.step = String(step);
+      input.setAttribute('aria-label', options.label || variable);
+      input.addEventListener('input', () => runtime.setValue(variable, parseFloat(input.value)));
+      input.addEventListener('change', () => runtime.flush());
+
+      const THUMB_HALF = 8; // half the width of the native thumb, in px
+      input.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault(); // take over from the native thumb drag
+        input.focus({ preventScroll: true });
+        const rect = input.getBoundingClientRect();
+        const track = Math.max(1, rect.width - 2 * THUMB_HALF);
+        const apply = (x) => {
+          const raw = min + clamp((x - rect.left - THUMB_HALF) / track, 0, 1) * (hi - min);
+          const value = roundTo(clamp(min + Math.round((raw - min) / step) * step, min, hi), decimals);
+          input.value = String(value);
+          runtime.setValue(variable, value);
+        };
+        apply(e.clientX); // clicking the track jumps there
+        element.classList.add('is-dragging');
+        trackDrag(e, apply, () => {
+          element.classList.remove('is-dragging');
+          runtime.flush();
+        });
+      });
+      element.appendChild(input);
 
       if (options['show-value'] !== 'false') {
         this.output = document.createElement('output');
