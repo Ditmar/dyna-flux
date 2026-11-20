@@ -828,7 +828,6 @@
             var myDiagram; // Declared as global
             var currentFormulaNodeKey = null;
             var currentFormulaProp = 'formula'; // 'formula' | 'initialValue'
-            var saveTimer = null;
             var STORAGE_KEY = 'dyna-flux:diagram';
             var SETTINGS_KEY = 'dyna-flux:settings';
             var _formulaAllVars = [];
@@ -1457,6 +1456,9 @@
 
             /* ── Model Settings ── */
             function loadSettings() {
+              // Start from defaults so a project without saved settings does not
+              // inherit the settings of the previously opened project.
+              modelSettings = { initTime: 0, finalTime: 100, dt: 1 };
               try {
                 var saved = localStorage.getItem(SETTINGS_KEY);
                 if (saved) {
@@ -1619,14 +1621,12 @@
                 }
               });
 
-              // Debounced autosave — fires after every committed transaction,
-              // not just when isModified changes (which only triggers once per session)
+              // Autosave after every committed transaction (drags only commit once,
+              // on mouse-up). Written synchronously so that clicking "Save" right
+              // after an edit never persists a stale diagram.
               myDiagram.addModelChangedListener(function(e) {
                 if (!e.isTransactionFinished) return;
-                if (saveTimer) clearTimeout(saveTimer);
-                saveTimer = setTimeout(function() {
-                  try { localStorage.setItem(STORAGE_KEY, myDiagram.model.toJson()); } catch(e) {}
-                }, 400);
+                persistDiagram();
               });
 
               // generate unique label for valve on newly-created flow link
@@ -1914,14 +1914,26 @@
               myDiagram.commitTransaction('mode changed');
             }
 
+            function persistDiagram() {
+              try { localStorage.setItem(STORAGE_KEY, myDiagram.model.toJson()); } catch(e) {}
+            }
+
             // Show the diagram's model in JSON format that the user may edit
             function load() {
               var saved = null;
               try { saved = localStorage.getItem(STORAGE_KEY); } catch(e) {}
 
               var emptyModel = '{ "class": "go.GraphLinksModel", "linkLabelKeysProperty": "labelKeys", "nodeDataArray": [], "linkDataArray": [] }';
-              myDiagram.model = go.Model.fromJson(saved || emptyModel);
+              try {
+                myDiagram.model = go.Model.fromJson(saved || emptyModel);
+              } catch(e) {
+                console.error('Invalid saved diagram, starting empty', e);
+                saved = null;
+                myDiagram.model = go.Model.fromJson(emptyModel);
+              }
+              myDiagram.isModified = false;
 
+              SD.nodeCounter = { stock: 0, cloud: 0, variable: 0, valve: 0 };
               if (saved) {
                 // Restore node counters so new nodes get unique keys
                 var nodes = (JSON.parse(saved).nodeDataArray || []);
@@ -2160,37 +2172,49 @@ insideLoop.join('\n') + '\n' +
 '  }\n' +
 '};\n';
 
-              // ── HTML panel ─────────────────────────────────────────────────────────
-              var htmlLines = [];
-              htmlLines.push('<p id="example">');
+              // ── Results panel (dashboard spec for the visual designer) ─────────────
+              var uid = 0;
+              function nextId(prefix) { uid += 1; return prefix + '-' + Date.now().toString(36) + '-' + uid; }
 
+              var controls = [];
               var ftb = computeSliderBounds(modelSettings.finalTime);
-              htmlLines.push('  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="' + modelSettings.initTime + '" data-max="' + ftb.max + '" data-step="' + ftb.step + '"></span>');
+              controls.push({ id: nextId('c'), var: 'finalTime', label: 'Tiempo final', min: modelSettings.initTime, max: ftb.max, step: ftb.step, kind: 'number' });
 
-              // Only parameter variables get adjustable sliders; computed vars are derived
+              // Only parameter variables get adjustable controls; computed vars are derived
               paramSort.ordered.forEach(function(name) {
                 var v = paramByName[name]; if (!v) return;
                 var b = computeSliderBounds(v.formula);
-                htmlLines.push('  ' + (v.label || v.key) + ' <span data-var="' + name + '" class="TKAdjustableNumber" data-min="' + b.min + '" data-max="' + b.max + '" data-step="' + b.step + '"></span>');
+                controls.push({ id: nextId('c'), var: name, label: v.label || v.key, min: b.min, max: b.max, step: b.step, kind: 'number' });
               });
               todoVars.forEach(function(v) {
-                htmlLines.push('  ' + (v.label || v.key) + ' <span data-var="' + lbl(v) + '" class="TKAdjustableNumber" data-min="0" data-max="10" data-step="0.01"></span>');
+                controls.push({ id: nextId('c'), var: lbl(v), label: v.label || v.key, min: 0, max: 10, step: 0.01, kind: 'number' });
               });
 
-              htmlLines.push('</p>');
+              var widgets = [];
+              var stockNames = stocks.map(lbl);
               stocks.forEach(function(s) {
-                var name = lbl(s);
-                htmlLines.push("<div id='" + name + "_plot' class='plotly' data-plotly='[time, " + name + "]'></div>");
+                widgets.push({ id: nextId('w'), type: 'chart', title: s.label || s.key, size: 'normal', x: 'time', series: [lbl(s)], chartType: 'line' });
               });
+              var computedNames = computedVars.map(lbl);
+              if (stockNames.length) {
+                widgets.push({
+                  id: nextId('w'), type: 'table', title: 'Datos de la simulación', size: 'wide',
+                  columns: ['time'].concat(stockNames, computedNames), every: 1,
+                });
+              }
 
-              var htmlCode = htmlLines.join('\n');
-              window.parent.postMessage({ type: 'forresterModel', code: modelCode, html: htmlCode }, '*');
+              var dashboard = { version: 1, controls: controls, widgets: widgets };
+              window.parent.postMessage({ type: 'forresterModel', code: modelCode, dashboard: dashboard }, '*');
             }
 
             window.addEventListener('DOMContentLoaded', init);
 
             window.addEventListener('message', function(event) {
-              if (event.data?.type === 'reloadDiagram') load();
+              if (event.source !== window.parent) return;
+              if (event.data?.type === 'reloadDiagram') {
+                load();
+                loadSettings();
+              }
             });
           </script>
 

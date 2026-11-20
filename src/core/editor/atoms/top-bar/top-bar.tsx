@@ -2,26 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { HeaderProps, Project } from './top-bar.types';
 import styles from './top-bar.module.scss';
 import {
-  Play, Square, GitBranch, FileCode, Save, FolderOpen,
+  Play, GitBranch, FileCode, Save, FolderOpen,
   Trash2, Plus, Loader2, LogIn, LogOut, UserPlus, Share2, Check,
 } from 'lucide-react';
 
 const Header = (props: HeaderProps) => {
   const {
-    play, visibleForrester, baseModel,
+    onRun, hasPendingChanges, visibleForrester, baseModel,
     projectName, onProjectNameChange,
     onSave, onNewProject, onLoadProject, onDeleteProject, onShareProject,
     projects, isSaving, currentProjectId, currentProjectIsPublic,
     authUser, onOpenAuth, onLogout,
   } = props;
 
-  const [isPlaying, setPlaying]               = useState(false);
   const [isForresterVisible, setForresterVisible] = useState(false);
   const [dropdownOpen, setDropdownOpen]        = useState(false);
   const [copied, setCopied]                    = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const handlerPlay = () => { const n = !isPlaying; setPlaying(n); play(n); };
   const showForrester = () => { const n = !isForresterVisible; setForresterVisible(n); visibleForrester(n); };
 
   const handleShare = async () => {
@@ -136,12 +134,16 @@ const Header = (props: HeaderProps) => {
       {/* Simulation actions */}
       <div className={styles.actions}>
         <button
-          className={`${styles.btn} ${isPlaying ? styles.btnActive : styles.btnPlay}`}
-          onClick={handlerPlay}
-          title={isPlaying ? 'Stop simulation' : 'Run simulation'}
+          className={`${styles.btn} ${styles.btnPlay} ${hasPendingChanges ? styles.btnPending : ''}`}
+          onClick={onRun}
+          title={hasPendingChanges
+            ? 'The code changed since the last run — run to update the results (Ctrl+Enter)'
+            : 'Run the simulation again from its initial values (Ctrl+Enter)'}
+          aria-label={hasPendingChanges ? 'Run simulation (code has changes)' : 'Run simulation'}
         >
-          {isPlaying ? <Square size={15} /> : <Play size={15} />}
-          {isPlaying ? 'Stop' : 'Play'}
+          <Play size={15} />
+          Run
+          {hasPendingChanges && <span className={styles.pendingDot} aria-hidden="true" />}
         </button>
 
         <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={baseModel} title="Load base model template">

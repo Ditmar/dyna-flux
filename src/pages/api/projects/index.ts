@@ -21,10 +21,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const auth = await getAuthUser(cookies);
   if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-  const { name, diagram, code, html, settings } = await request.json();
+  const { name, diagram, code, html, dashboard, settings } = await request.json();
 
   const project = await prisma.project.create({
-    data: { userId: auth.userId, name: name ?? 'Untitled', diagram, code, html, settings },
+    data: { userId: auth.userId, name: name ?? 'Untitled', diagram, code, html, dashboard, settings },
     select: { id: true, name: true, createdAt: true, updatedAt: true },
   });
 

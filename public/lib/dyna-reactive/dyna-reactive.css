@@ -1,0 +1,165 @@
+/* DynaReactive — styles for reactive controls. Override the variables to theme. */
+
+:root {
+  --dr-accent: #2f6fed;
+  --dr-accent-strong: #1846b5;
+  --dr-track: rgba(47, 111, 237, 0.18);
+  --dr-focus: rgba(47, 111, 237, 0.45);
+  --dr-hint-bg: #1f2937;
+  --dr-hint-fg: #f9fafb;
+  --dr-error-bg: #fef2f2;
+  --dr-error-fg: #991b1b;
+  --dr-error-border: #fca5a5;
+}
+
+/* ── Draggable number ─────────────────────────────────────────────────── */
+
+.dr-number,
+.TKAdjustableNumber {
+  position: relative;
+  display: inline-block;
+  padding: 0 2px;
+  color: var(--dr-accent);
+  border-bottom: 1px dashed currentColor;
+  border-radius: 2px;
+  cursor: ew-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; /* let pointer events drive horizontal drags on touch screens */
+  font-variant-numeric: tabular-nums;
+  background-image: linear-gradient(var(--dr-track), var(--dr-track));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 0 100%;
+  transition: color 0.12s, background-color 0.12s;
+}
+
+.dr-number:hover,
+.dr-number:focus-visible,
+.dr-number.is-dragging {
+  background-size: var(--dr-fill, 0%) 100%;
+}
+
+.dr-number:focus-visible {
+  outline: 2px solid var(--dr-focus);
+  outline-offset: 1px;
+}
+
+.dr-number.dr-unbound {
+  color: #b45309;
+  border-bottom-color: #f59e0b;
+  cursor: help;
+}
+
+.dr-number.is-dragging,
+.TKAdjustableNumberDown {
+  color: var(--dr-accent-strong);
+  border-bottom-style: solid;
+}
+
+/* Hover hint (replaces TangleKit's "drag" label) */
+@media (hover: hover) {
+  .dr-number[data-dr-hint]:hover:not(.is-dragging)::after {
+    content: attr(data-dr-hint);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 4px);
+    transform: translateX(-50%);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--dr-hint-bg);
+    color: var(--dr-hint-fg);
+    font: 10px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+  }
+}
+
+.dr-editor {
+  font: inherit;
+  color: inherit;
+  min-width: 4ch;
+  padding: 0 2px;
+  border: 1px solid var(--dr-accent);
+  border-radius: 3px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dr-focus);
+}
+
+html.dr-dragging,
+html.dr-dragging * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+/* ── Range slider ─────────────────────────────────────────────────────── */
+
+.dr-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.dr-slider input[type='range'] {
+  accent-color: var(--dr-accent);
+  width: 140px;
+}
+
+.dr-slider .dr-value {
+  min-width: 4ch;
+  color: var(--dr-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Number field ─────────────────────────────────────────────────────── */
+
+.dr-input input {
+  font: inherit;
+  padding: 1px 4px;
+  border: 1px solid #c7cdd6;
+  border-radius: 4px;
+}
+
+.dr-input input:focus {
+  outline: none;
+  border-color: var(--dr-accent);
+  box-shadow: 0 0 0 2px var(--dr-focus);
+}
+
+/* ── Toggle ───────────────────────────────────────────────────────────── */
+
+.dr-toggle,
+.TKToggle {
+  color: var(--dr-accent);
+  border-bottom: 1px dashed currentColor;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dr-toggle:focus-visible {
+  outline: 2px solid var(--dr-focus);
+  outline-offset: 1px;
+}
+
+/* ── Error banner ─────────────────────────────────────────────────────── */
+
+.dr-error {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 8px 12px;
+  border: 1px solid var(--dr-error-border);
+  border-radius: 6px;
+  background: var(--dr-error-bg);
+  color: var(--dr-error-fg);
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.dr-error[hidden] {
+  display: none;
+}

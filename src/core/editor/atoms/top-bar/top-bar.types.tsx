@@ -13,7 +13,10 @@ export interface AuthUser {
 }
 
 export interface HeaderProps {
-  play: (isPlay: boolean) => void;
+  /** Run (or re-run) the simulation with the current code. */
+  onRun: () => void;
+  /** The code was edited after the last run, so the results are outdated. */
+  hasPendingChanges: boolean;
   visibleForrester: (isVisible: boolean) => void;
   baseModel: () => void;
   // project management — visible only when authenticated

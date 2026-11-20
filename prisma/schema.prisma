@@ -26,6 +26,7 @@ model Project {
   diagram   String?
   code      String?
   html      String?
+  dashboard String?
   settings  String?
   isPublic  Boolean  @default(false) @map("is_public")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz

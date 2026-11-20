@@ -6,6 +6,9 @@ import WrapperFlow from '../../molecules/wrapper-flow/wrapper-flow';
 import Header from '../../atoms/top-bar/top-bar';
 import IframeViewer from '../../molecules/iframe-loader/iframeLoader';
 import AuthModal from '../../atoms/auth-modal/auth-modal';
+import DashboardBuilder from '../dashboard-builder/dashboard-builder';
+import { normalizeDashboard, dashboardFromLegacyHtml, emptyDashboard } from '../../dashboard/dashboard';
+import type { DashboardSpec } from '../../dashboard/dashboard';
 import type { Project, AuthUser } from '../../atoms/top-bar/top-bar.types';
 
 const mockedCode = `
@@ -30,21 +33,57 @@ const model = {
 
 
 `;
-const mockedHtml = `
-
-<p id="example">
-  Final Time <span data-var="finalTime" class="TKAdjustableNumber" data-min="2" data-max="300"></span>
-poblacion inicial <span data-var="x" class="TKAdjustableNumber" data-min="0" data-ma="100", data-step="1"></span>
-
-</p>
-<div id='negative' class='plotly'  data-plotly='[time, x]'></div>
-
-`;
+const mockedDashboard = (): DashboardSpec => ({
+  version: 1,
+  controls: [
+    { id: 'c-final', var: 'finalTime', label: 'Tiempo final', min: 2, max: 300, step: 1, kind: 'number' },
+    { id: 'c-x0', var: 'x0', label: 'Población inicial', min: 0, max: 100, step: 1, kind: 'slider' },
+  ],
+  widgets: [
+    { id: 'w-x', type: 'chart', title: 'Población', size: 'normal', x: 'time', series: ['x'], chartType: 'line' },
+  ],
+});
 
 const LS_CODE         = 'dyna-flux:code';
-const LS_HTML         = 'dyna-flux:html';
+const LS_HTML         = 'dyna-flux:html';        // legacy: hand-written HTML panel
+const LS_DASHBOARD    = 'dyna-flux:dashboard';
 const LS_PROJECT_ID   = 'dyna-flux:projectId';
 const LS_PROJECT_NAME = 'dyna-flux:projectName';
+const LS_DIAGRAM      = 'dyna-flux:diagram';
+const LS_SETTINGS     = 'dyna-flux:settings';
+
+interface ProjectPayload {
+  id: string;
+  name: string;
+  diagram?: string | null;
+  code?: string | null;
+  html?: string | null;
+  dashboard?: string | null;
+  settings?: string | null;
+  isPublic?: boolean;
+}
+
+// Write a value to localStorage, or remove the key when the value is missing,
+// so data from a previously opened project never leaks into the next one.
+const setOrRemove = (key: string, value: string | null | undefined) => {
+  if (value === null || value === undefined) localStorage.removeItem(key);
+  else localStorage.setItem(key, value);
+};
+
+// Results panel of a project: the saved dashboard, or a conversion of the
+// HTML panel used by projects created before the visual designer existed.
+const dashboardFromProject = (project: ProjectPayload): DashboardSpec => {
+  if (project.dashboard) return normalizeDashboard(project.dashboard);
+  if (project.html) return dashboardFromLegacyHtml(project.html);
+  return project.code ? emptyDashboard() : mockedDashboard();
+};
+
+const loadInitialDashboard = (): DashboardSpec => {
+  const saved = localStorage.getItem(LS_DASHBOARD);
+  if (saved) return normalizeDashboard(saved);
+  const legacy = localStorage.getItem(LS_HTML);
+  return legacy ? dashboardFromLegacyHtml(legacy) : mockedDashboard();
+};
 
 type FullscreenSide = 'left' | 'right' | null;
 
@@ -63,8 +102,12 @@ const CollapseIcon = () => (
 
 const MainBoard = () => {
   const [code, setCode]         = useState(() => localStorage.getItem(LS_CODE) ?? mockedCode);
-  const [htmlCode, setHtmlCode] = useState(() => localStorage.getItem(LS_HTML) ?? mockedHtml);
-  const [play, setPlay]         = useState(false);
+  // The simulation shows the last *executed* code: editing the code marks the
+  // results as outdated until the user runs it (Run button / Ctrl+Enter).
+  const [run, setRun]           = useState(() => ({ code: localStorage.getItem(LS_CODE) ?? mockedCode, id: 0 }));
+  const codeRef = useRef(code);
+  codeRef.current = code;
+  const [dashboard, setDashboard] = useState<DashboardSpec>(loadInitialDashboard);
   const [isVisibleForrester, setVisibleForrester] = useState(false);
   const [leftPorcent, setPorcent] = useState(50);
   const [fullscreen, setFullscreen] = useState<FullscreenSide>(null);
@@ -84,6 +127,12 @@ const MainBoard = () => {
   const [isSaving, setIsSaving]             = useState(false);
   const [forresterReloadSignal, setForresterReloadSignal] = useState(0);
 
+  // Persist the panel design locally (and drop the migrated legacy HTML).
+  useEffect(() => {
+    localStorage.setItem(LS_DASHBOARD, JSON.stringify(dashboard));
+    localStorage.removeItem(LS_HTML);
+  }, [dashboard]);
+
   // ── Check auth on mount ─────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/auth/me')
@@ -102,6 +151,52 @@ const MainBoard = () => {
 
   useEffect(() => { if (authUser) fetchProjects(); }, [authUser, fetchProjects]);
 
+  // ── Run ─────────────────────────────────────────────────────────────────
+  const runSimulation = useCallback((source?: string) => {
+    const nextCode = source ?? codeRef.current;
+    setRun(r => ({ code: nextCode, id: r.id + 1 }));
+  }, []);
+
+  // Replace the editor contents and run them (project load, templates, Forrester).
+  const loadCode = useCallback((nextCode: string) => {
+    codeRef.current = nextCode;
+    setCode(nextCode);
+    localStorage.setItem(LS_CODE, nextCode);
+    runSimulation(nextCode);
+  }, [runSimulation]);
+
+  // Ctrl/Cmd+Enter runs from anywhere (Monaco registers its own command).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+      if ((e.target as HTMLElement | null)?.closest?.('.monaco-editor')) return;
+      e.preventDefault();
+      runSimulation();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [runSimulation]);
+
+  // ── Apply a project to the editor state ─────────────────────────────────
+  // Every field is written (or cleared), so nothing from the previous project
+  // survives, and the Forrester iframe reloads both diagram AND settings.
+  const applyProject = useCallback((project: ProjectPayload, isPublic: boolean) => {
+    const nextCode = project.code ?? mockedCode;
+
+    setCurrentProjectId(project.id);
+    setProjectName(project.name);
+    setCurrentProjectIsPublic(isPublic);
+    loadCode(nextCode);
+    setDashboard(dashboardFromProject(project));
+
+    localStorage.setItem(LS_PROJECT_ID, project.id);
+    localStorage.setItem(LS_PROJECT_NAME, project.name);
+    setOrRemove(LS_DIAGRAM, project.diagram);
+    setOrRemove(LS_SETTINGS, project.settings);
+
+    setForresterReloadSignal(s => s + 1);
+  }, [loadCode]);
+
   // ── Deep-link: load shared project from URL ?p=<id> ────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -110,39 +205,27 @@ const MainBoard = () => {
 
     fetch(`/api/projects/public/${shareId}`)
       .then(r => r.ok ? r.json() : null)
-      .then(project => {
+      .then((project: ProjectPayload | null) => {
         if (!project) return;
-        setCurrentProjectId(project.id);
-        setProjectName(project.name);
-        setCurrentProjectIsPublic(true);
-        localStorage.setItem(LS_PROJECT_ID, project.id);
-        localStorage.setItem(LS_PROJECT_NAME, project.name);
-        if (project.diagram) localStorage.setItem('dyna-flux:diagram', project.diagram);
-        if (project.settings) localStorage.setItem('dyna-flux:settings', project.settings);
-        if (project.code) { setCode(project.code); localStorage.setItem(LS_CODE, project.code); }
-        if (project.html) { setHtmlCode(project.html); localStorage.setItem(LS_HTML, project.html); }
+        applyProject(project, true);
         window.history.replaceState(null, '', `/?p=${project.id}`);
-        setForresterReloadSignal(s => s + 1);
       })
       .catch(() => { /* ignore */ });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [applyProject]);
 
   // ── Forrester postMessage ───────────────────────────────────────────────
   useEffect(() => {
     const onForresterMessage = (event: MessageEvent) => {
       if (event.data?.type === 'forresterModel') {
-        const newCode = event.data.code || '';
-        const newHtml = event.data.html || '';
-        setCode(newCode);
-        setHtmlCode(newHtml);
-        localStorage.setItem(LS_CODE, newCode);
-        localStorage.setItem(LS_HTML, newHtml);
+        loadCode(event.data.code || '');
+        setDashboard(event.data.dashboard
+          ? normalizeDashboard(event.data.dashboard)
+          : dashboardFromLegacyHtml(event.data.html));
       }
     };
     window.addEventListener('message', onForresterMessage);
     return () => window.removeEventListener('message', onForresterMessage);
-  }, []);
+  }, [loadCode]);
 
   // ── Panel drag ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -181,38 +264,43 @@ const MainBoard = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const body = {
+      const body = JSON.stringify({
         name:     projectName,
-        diagram:  localStorage.getItem('dyna-flux:diagram'),
-        code:     localStorage.getItem(LS_CODE),
-        html:     localStorage.getItem(LS_HTML),
-        settings: localStorage.getItem('dyna-flux:settings'),
-      };
+        diagram:  localStorage.getItem(LS_DIAGRAM),
+        code,
+        dashboard: JSON.stringify(dashboard),
+        settings: localStorage.getItem(LS_SETTINGS),
+      });
+      const headers = { 'Content-Type': 'application/json' };
 
-      let res: Response;
+      let res: Response | null = null;
       if (currentProjectId) {
-        res = await fetch(`/api/projects/${currentProjectId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-      } else {
-        res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
+        res = await fetch(`/api/projects/${currentProjectId}`, { method: 'PUT', headers, body });
+      }
+      // No project yet, or the project belongs to someone else (opened from a
+      // share link) → save it as a new project in the current user's account.
+      if (!res || res.status === 404) {
+        res = await fetch('/api/projects', { method: 'POST', headers, body });
       }
 
-      if (res.ok) {
-        const project: Project = await res.json();
-        setCurrentProjectId(project.id);
-        localStorage.setItem(LS_PROJECT_ID, project.id);
-        localStorage.setItem(LS_PROJECT_NAME, projectName);
-        await fetchProjects();
+      if (!res.ok) {
+        throw new Error(res.status === 401 ? 'Sesión expirada, vuelve a iniciar sesión' : `HTTP ${res.status}`);
       }
+
+      const project: Project = await res.json();
+      if (project.id !== currentProjectId) {
+        setCurrentProjectIsPublic(Boolean(project.isPublic));
+        if (new URLSearchParams(window.location.search).has('p')) {
+          window.history.replaceState(null, '', '/');
+        }
+      }
+      setCurrentProjectId(project.id);
+      localStorage.setItem(LS_PROJECT_ID, project.id);
+      localStorage.setItem(LS_PROJECT_NAME, projectName);
+      await fetchProjects();
     } catch (err) {
       console.error('Save failed', err);
+      alert(`No se pudo guardar el proyecto: ${(err as Error).message}`);
     } finally {
       setIsSaving(false);
     }
@@ -223,20 +311,8 @@ const MainBoard = () => {
     try {
       const res = await fetch(`/api/projects/${id}`);
       if (!res.ok) return;
-      const project = await res.json();
-
-      setCurrentProjectId(project.id);
-      setProjectName(project.name);
-      setCurrentProjectIsPublic(Boolean(project.isPublic));
-      localStorage.setItem(LS_PROJECT_ID, project.id);
-      localStorage.setItem(LS_PROJECT_NAME, project.name);
-
-      if (project.diagram) localStorage.setItem('dyna-flux:diagram', project.diagram);
-      if (project.settings) localStorage.setItem('dyna-flux:settings', project.settings);
-
-      if (project.code) { setCode(project.code); localStorage.setItem(LS_CODE, project.code); }
-      if (project.html) { setHtmlCode(project.html); localStorage.setItem(LS_HTML, project.html); }
-      setForresterReloadSignal(s => s + 1);
+      const project: ProjectPayload = await res.json();
+      applyProject(project, Boolean(project.isPublic));
     } catch (err) {
       console.error('Load failed', err);
     }
@@ -261,8 +337,16 @@ const MainBoard = () => {
     setCurrentProjectId(null);
     setProjectName('Untitled');
     setCurrentProjectIsPublic(false);
+    loadCode(mockedCode);
+    setDashboard(mockedDashboard());
     localStorage.removeItem(LS_PROJECT_ID);
     localStorage.removeItem(LS_PROJECT_NAME);
+    localStorage.removeItem(LS_DIAGRAM);
+    localStorage.removeItem(LS_SETTINGS);
+    if (new URLSearchParams(window.location.search).has('p')) {
+      window.history.replaceState(null, '', '/');
+    }
+    setForresterReloadSignal(s => s + 1);
   };
 
   // ── Share project ───────────────────────────────────────────────────────
@@ -283,13 +367,10 @@ const MainBoard = () => {
   };
 
   // ── Other handlers ──────────────────────────────────────────────────────
-  const handlerPlay      = (isPlay: boolean) => setPlay(isPlay);
   const handlerForrester = (isVisible: boolean) => setVisibleForrester(isVisible);
   const handlerBaseModel = () => {
-    setCode(mockedCode);
-    setHtmlCode(mockedHtml);
-    localStorage.setItem(LS_CODE, mockedCode);
-    localStorage.setItem(LS_HTML, mockedHtml);
+    loadCode(mockedCode);
+    setDashboard(mockedDashboard());
   };
   const toggleFullscreen = (side: 'left' | 'right') =>
     setFullscreen(prev => prev === side ? null : side);
@@ -302,7 +383,8 @@ const MainBoard = () => {
   return (
     <div>
       <Header
-        play={handlerPlay}
+        onRun={() => runSimulation()}
+        hasPendingChanges={code !== run.code}
         visibleForrester={handlerForrester}
         baseModel={handlerBaseModel}
         projectName={projectName}
@@ -334,24 +416,16 @@ const MainBoard = () => {
               theme='vs-dark'
               value={code}
               options={{ automaticLayout: true }}
+              onMount={(editor, monaco) => {
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runSimulation(editor.getValue()));
+              }}
               onChange={(value) => {
                 const v = value || '';
                 setCode(v);
                 localStorage.setItem(LS_CODE, v);
               }}
             />
-            <Editor
-              height='50vh'
-              defaultLanguage='html'
-              defaultValue='<div></div>'
-              value={htmlCode}
-              options={{ automaticLayout: true }}
-              onChange={(value) => {
-                const v = value || '';
-                setHtmlCode(v);
-                localStorage.setItem(LS_HTML, v);
-              }}
-            />
+            <DashboardBuilder value={dashboard} onChange={setDashboard} modelCode={code} />
           </Panel>
           <button
             className={styles.fullscreenBtn}
@@ -375,7 +449,7 @@ const MainBoard = () => {
           <Panel width="100%">
             <IframeViewer src='/forrester' title='Iframe Example' isVisibleForrester={isVisibleForrester} reloadSignal={forresterReloadSignal} />
             {isMouseMove && <div className={styles.overlay}></div>}
-            <WrapperFlow model={code} html={htmlCode} isPlay={play} />
+            <WrapperFlow model={run.code} dashboard={dashboard} runId={run.id} />
           </Panel>
           <button
             className={styles.fullscreenBtn}
